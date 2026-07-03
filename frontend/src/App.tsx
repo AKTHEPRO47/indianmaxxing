@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { HashRouter, Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Dashboard from './pages/Dashboard'
 import CompanyDetail from './pages/CompanyDetail'
@@ -22,7 +22,7 @@ export default function App() {
   }, [sidebarCollapsed])
 
   return (
-    <BrowserRouter>
+    <HashRouter>
       <div className="min-h-screen app-grid-bg bg-slate-50 transition-colors">
         <div className="flex min-h-screen">
           <Sidebar collapsed={sidebarCollapsed} />
@@ -42,6 +42,6 @@ export default function App() {
           </div>
         </div>
       </div>
-    </BrowserRouter>
+    </HashRouter>
   )
 }
