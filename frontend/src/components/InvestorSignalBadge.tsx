@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import { Gem, Rocket, TrendingDown, ShieldAlert, AlertOctagon, Eye, TrendingUp, Minus, CircleAlert } from 'lucide-react'
+import { Gem, Rocket, TrendingDown, ShieldAlert, AlertOctagon, Eye } from 'lucide-react'
 import type { Classification, InvestorSignal } from '../types'
 import { classificationColor, signalColor } from '../utils/helpers'
 
@@ -41,20 +41,8 @@ interface SignalBadgeProps {
 }
 
 export function InvestorSignalBadge({ signal }: SignalBadgeProps) {
-  const iconProps = { className: 'w-3.5 h-3.5', strokeWidth: 2.5 } as const
-  const signalIcon = (() => {
-    switch (signal) {
-      case 'Buy / Watchlist': return <TrendingUp {...iconProps} />
-      case 'Hold': return <Minus {...iconProps} />
-      case 'Risk Alert': return <CircleAlert {...iconProps} />
-      case 'Avoid': return <TrendingDown {...iconProps} />
-      default: return <Eye {...iconProps} />
-    }
-  })()
-
   return (
     <span className={clsx('badge font-bold text-xs tracking-wide', signalColor(signal as InvestorSignal))}>
-      {signalIcon}
       {signal}
     </span>
   )

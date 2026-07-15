@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { TrendingUp, TrendingDown, AlertTriangle, Eye, ArrowRight, Zap, Gem, ShieldAlert, Newspaper, Sparkles, Leaf, Gauge, Building2, Landmark } from 'lucide-react'
-import { addFavoriteItem, addWatchlistItem, getDashboard, getFavorites, getStockData, getWatchlist, removeFavoriteItem, removeWatchlistItem, searchCompanies } from '../api/client'
+import { getDashboard } from '../api/client'
 import type { DashboardData } from '../types'
 import CompanySearchBar from '../components/CompanySearchBar'
 import CompanyLogo from '../components/CompanyLogo'
@@ -14,96 +14,18 @@ import { clsx } from 'clsx'
 
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
-  const [savedWatchlistIds, setSavedWatchlistIds] = useState<number[]>([])
-  const [favoriteIds, setFavoriteIds] = useState<number[]>([])
-  const [singaporeStocks, setSingaporeStocks] = useState<any[]>([])
-  const [singaporeQuoteMap, setSingaporeQuoteMap] = useState<Record<number, { last_price: number | null; change_percent: number | null; currency: string | null }>>({})
   const [loading, setLoading] = useState(true)
-  const [savingId, setSavingId] = useState<number | null>(null)
   const [exchangeFilter, setExchangeFilter] = useState('ALL')
   const [countryFilter, setCountryFilter] = useState('ALL')
   const [industryFilter, setIndustryFilter] = useState('ALL')
   const navigate = useNavigate()
 
   useEffect(() => {
-    Promise.all([getDashboard(), getWatchlist(), getFavorites()])
-      .then(([dashboardData, watchlistData, favoritesData]) => {
-        setData(dashboardData)
-        setSavedWatchlistIds(watchlistData.map(company => company.id))
-        setFavoriteIds(favoritesData.map(company => company.id))
-        return searchCompanies({ country: 'Singapore' })
-      })
-      .then((sgxData) => {
-        setSingaporeStocks(sgxData)
-      })
+    getDashboard()
+      .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [])
-
-  useEffect(() => {
-    if (singaporeStocks.length === 0) {
-      setSingaporeQuoteMap({})
-      return
-    }
-
-    let cancelled = false
-    Promise.allSettled(
-      singaporeStocks.map(async company => {
-        const data = await getStockData(company.id, '1d')
-        return [company.id, {
-          last_price: data?.quote.last_price ?? null,
-          change_percent: data?.quote.change_percent ?? null,
-          currency: data?.quote.currency ?? null,
-        }] as const
-      }),
-    ).then(results => {
-      if (cancelled) return
-      const next: Record<number, { last_price: number | null; change_percent: number | null; currency: string | null }> = {}
-      for (const result of results) {
-        if (result.status !== 'fulfilled') continue
-        const [companyId, quote] = result.value
-        next[companyId] = quote
-      }
-      setSingaporeQuoteMap(next)
-    })
-
-    return () => {
-      cancelled = true
-    }
-  }, [singaporeStocks])
-
-  const toggleWatchlist = async (company: { id: number }, saved: boolean) => {
-    setSavingId(company.id)
-    try {
-      if (saved) {
-        await removeWatchlistItem(company.id)
-        setSavedWatchlistIds(current => current.filter(id => id !== company.id))
-        setData(current => current ? { ...current, watchlist: current.watchlist.filter(item => item.id !== company.id) } : current)
-      } else {
-        await addWatchlistItem(company.id)
-        setSavedWatchlistIds(current => [...current, company.id])
-        const updatedWatchlist = await getWatchlist()
-        setData(current => current ? { ...current, watchlist: updatedWatchlist } : current)
-      }
-    } finally {
-      setSavingId(null)
-    }
-  }
-
-  const toggleFavorite = async (company: { id: number }, saved: boolean) => {
-    setSavingId(company.id)
-    try {
-      if (saved) {
-        await removeFavoriteItem(company.id)
-        setFavoriteIds(current => current.filter(id => id !== company.id))
-      } else {
-        await addFavoriteItem(company.id)
-        setFavoriteIds(current => [...current, company.id])
-      }
-    } finally {
-      setSavingId(null)
-    }
-  }
 
   if (loading) return <LoadingScreen />
 
@@ -138,11 +60,12 @@ export default function Dashboard() {
 
         <div className="relative z-10 space-y-4">
           <h1 className="text-3xl sm:text-4xl font-bold tracking-tight animate-fade-up delay-75">
-            <span className="text-slate-900 dark:text-slate-100">Tri</span>
-            <span className="gradient-text">card</span>
+            <span className="text-slate-900 dark:text-slate-100">ESG </span>
+            <span className="gradient-text">Momentum</span>
+            <span className="text-slate-900 dark:text-slate-100"> Engine</span>
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-base max-w-xl mx-auto animate-fade-up delay-150">
-            A creative investing cockpit for momentum, backtests, dividends, and signal-led research.
+            Measure the <em>direction and speed</em> of ESG change before traditional rating providers catch up.
           </p>
           <div className="max-w-2xl mx-auto animate-fade-up delay-225">
             <CompanySearchBar size="lg" />
@@ -209,35 +132,6 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="card overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-2">
-            <Landmark className="w-4 h-4 text-emerald-600" />
-            <h2 className="font-semibold text-slate-900 dark:text-slate-100 text-sm">Singapore Stocks</h2>
-          </div>
-          <button onClick={() => navigate('/matrix')} className="text-xs font-medium text-emerald-700 hover:text-emerald-800">Open matrix</button>
-        </div>
-        <div className="divide-y divide-slate-50 dark:divide-slate-800">
-          {singaporeStocks.map(company => (
-            <button key={company.id} onClick={() => navigate(`/companies/${company.id}`)} className="w-full px-5 py-3 text-left hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="font-medium text-slate-900 dark:text-slate-100 text-sm">{company.name}</div>
-                <div className="text-xs text-slate-500">{company.ticker} · {company.industry}</div>
-              </div>
-              <div className="text-right shrink-0">
-                <div className="text-xs font-semibold text-emerald-700">{company.exchange}</div>
-                <div className="text-[11px] text-slate-500">
-                  {singaporeQuoteMap[company.id]?.last_price === null || singaporeQuoteMap[company.id]?.last_price === undefined
-                    ? 'Live price loading'
-                    : `${singaporeQuoteMap[company.id]?.currency ?? 'SGD'} ${singaporeQuoteMap[company.id]!.last_price!.toFixed(2)}${typeof singaporeQuoteMap[company.id]?.change_percent === 'number' ? ` (${singaporeQuoteMap[company.id]!.change_percent! > 0 ? '+' : ''}${singaporeQuoteMap[company.id]!.change_percent!.toFixed(2)}%)` : ''}`}
-                </div>
-              </div>
-            </button>
-          ))}
-          {singaporeStocks.length === 0 && <EmptyRow label="No Singapore stocks found" />}
-        </div>
-      </div>
-
       {/* Top panels row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Hidden Winners */}
@@ -299,14 +193,7 @@ export default function Dashboard() {
           </div>
         </div>
         {filteredWatchlist.length > 0 ? (
-          <WatchlistTable
-            companies={filteredWatchlist}
-            savedCompanyIds={savedWatchlistIds}
-            favoriteCompanyIds={favoriteIds}
-            busyCompanyId={savingId}
-            onToggleWatchlist={toggleWatchlist}
-            onToggleFavorite={toggleFavorite}
-          />
+          <WatchlistTable companies={filteredWatchlist} />
         ) : (
           <EmptyRow label="No companies match current filters" />
         )}
@@ -396,7 +283,7 @@ function LoadingScreen() {
   return (
     <div className="max-w-screen-xl mx-auto px-6 py-16 flex flex-col items-center gap-4">
       <div className="w-10 h-10 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
-      <p className="text-slate-500 text-sm">Loading Tricard intelligence...</p>
+      <p className="text-slate-500 text-sm">Loading ESG Intelligence...</p>
     </div>
   )
 }

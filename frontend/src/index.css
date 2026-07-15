@@ -202,20 +202,3 @@
     background: white !important;
   }
 }
-
-:root[data-tricard-layout='compact'] .max-w-screen-xl {
-  max-width: 72rem;
-}
-
-:root[data-tricard-layout='analytics'] .max-w-screen-xl {
-  max-width: 88rem;
-}
-
-:root[data-tricard-density='compact'] .card {
-  border-radius: 0.75rem;
-}
-
-:root[data-tricard-density='dense'] .card {
-  border-radius: 0.625rem;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
-}

@@ -5,13 +5,12 @@ from sqlalchemy import desc
 from app.database import get_db
 from app.models import Company, ScoreSnapshot
 from app.schemas import MatrixResponse, MatrixEntry, CompanyOut
-from app.routers.auth import get_current_user
 
 router = APIRouter(prefix="/matrix", tags=["matrix"])
 
 
 @router.get("", response_model=MatrixResponse)
-def get_matrix(db: Session = Depends(get_db), _current_user=Depends(get_current_user)):
+def get_matrix(db: Session = Depends(get_db)):
     # Get latest snapshot per company
     subquery = (
         db.query(ScoreSnapshot.company_id, db.query(ScoreSnapshot.id)

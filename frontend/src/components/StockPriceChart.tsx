@@ -3,7 +3,6 @@ import {
   ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip, ReferenceLine,
   AreaChart, Area,
 } from 'recharts'
-import { RefreshCw } from 'lucide-react'
 import type { StockData, StockRange } from '../types'
 import { clsx } from 'clsx'
 
@@ -12,7 +11,6 @@ interface Props {
   loading?: boolean
   selectedRange: StockRange
   onRangeChange: (range: StockRange) => void
-  onRefresh?: () => void | Promise<void>
 }
 
 const RANGE_OPTIONS: Array<{ value: StockRange; label: string }> = [
@@ -100,7 +98,7 @@ function StatCard({ label, value, subValue }: { label: string; value: string; su
   )
 }
 
-export default function StockPriceChart({ data, loading = false, selectedRange, onRangeChange, onRefresh }: Props) {
+export default function StockPriceChart({ data, loading = false, selectedRange, onRangeChange }: Props) {
   const history = [...(data?.history ?? [])].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
   const currency = data?.quote.currency ?? 'USD'
   const quote = data?.quote
@@ -150,16 +148,6 @@ export default function StockPriceChart({ data, loading = false, selectedRange, 
             {option.label}
           </button>
         ))}
-        <button
-          onClick={() => void onRefresh?.()}
-          disabled={loading || !onRefresh}
-          className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-          aria-label="Refresh stock chart"
-          title="Refresh"
-        >
-          <RefreshCw className={clsx('h-3.5 w-3.5', loading && 'animate-spin')} />
-          Refresh
-        </button>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.95fr)]">

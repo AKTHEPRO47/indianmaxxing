@@ -1,8 +1,6 @@
 import { Link } from 'react-router-dom'
-import { HeartPulse, PanelLeftClose, PanelLeftOpen, LogOut, UserRound } from 'lucide-react'
+import { HeartPulse, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import CompanySearchBar from './CompanySearchBar'
-import { useAuth } from '../context/AuthContext'
-import NotificationBell from './NotificationBell'
 
 interface Props {
   sidebarCollapsed: boolean
@@ -10,8 +8,6 @@ interface Props {
 }
 
 export default function Navbar({ sidebarCollapsed, onToggleSidebar }: Props) {
-  const { user, logout } = useAuth()
-
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
       <div className="flex h-16 items-center gap-4 px-4 sm:px-6 lg:px-8">
@@ -29,7 +25,7 @@ export default function Navbar({ sidebarCollapsed, onToggleSidebar }: Props) {
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-rose-700 via-red-600 to-blue-600 shadow-sm ring-1 ring-slate-200">
               <HeartPulse className="h-4 w-4 text-white" />
             </div>
-            <span className="font-bold text-slate-900 text-sm">Tricard</span>
+            <span className="font-bold text-slate-900 text-sm">ESG Momentum</span>
           </Link>
         </div>
 
@@ -39,22 +35,7 @@ export default function Navbar({ sidebarCollapsed, onToggleSidebar }: Props) {
 
         <div className="hidden lg:flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600">
           <span className="live-dot h-2 w-2 rounded-full bg-emerald-500" />
-          Signal workspace
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {user ? (
-            <>
-              <NotificationBell />
-              <Link to="/account" className="btn-secondary text-xs"><UserRound className="h-4 w-4" />{user.full_name ?? user.email}</Link>
-              <button onClick={() => logout()} className="btn-secondary text-xs"><LogOut className="h-4 w-4" />Logout</button>
-            </>
-          ) : (
-            <>
-              <Link to="/login" className="btn-secondary text-xs">Login</Link>
-              <Link to="/register" className="btn-primary text-xs">Register</Link>
-            </>
-          )}
+          Live workspace
         </div>
       </div>
     </header>

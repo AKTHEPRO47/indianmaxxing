@@ -3,22 +3,15 @@ import { COMPANY_CATALOG } from '../data/companyCatalog'
 import type {
   Company, ScoreSnapshot, Evidence, Signal, Report,
   DashboardData, MatrixData, CopilotResponse, StockData, StockRange,
-  AuthResponse, UserProfile, UserPreferences, AccountExportBundle, NotificationItem, UpdatePreferencesPayload, CompanyQuantAnalytics, DividendSummary,
 } from '../types'
 
 const BASE = '/api'
+
 const http = axios.create({
   baseURL: BASE,
   headers: { 'Content-Type': 'application/json' },
-  withCredentials: true,
   timeout: 15000,
 })
-
-const isHostedFallbackOnly = () => {
-  if (typeof window === 'undefined') return false
-  const host = window.location.hostname
-  return host !== 'localhost' && host !== '127.0.0.1'
-}
 
 const nowIso = () => new Date().toISOString()
 
@@ -138,6 +131,57 @@ const fallbackSignals = (companyId: number): Signal[] => ([
   },
 ])
 
+const fallbackStockData = (companyId: number, range: StockRange): StockData | null => {
+  const company = fallbackCompanyById(companyId)
+  if (!company?.ticker) return null
+  const base = 80 + (hashString(company.ticker) % 250)
+  const history = Array.from({ length: 24 }, (_, index) => {
+    const drift = Math.sin((index / 24) * Math.PI * 2) * 4
+    const close = base + drift + index * 0.35
+    return {
+      timestamp: new Date(Date.now() - (23 - index) * 60 * 60 * 1000).toISOString(),
+      open: close - 1.2,
+      high: close + 2.1,
+      low: close - 2.4,
+      close,
+      volume: 1000000 + index * 25000,
+    }
+  })
+  const last = history[history.length - 1]
+  const previous = history[history.length - 2] ?? last
+  return {
+    company_id: company.id,
+    company_name: company.name,
+    ticker: company.ticker ?? '',
+    range,
+    quote: {
+      symbol: company.ticker ?? '',
+      currency: 'USD',
+      exchange: company.exchange ?? null,
+      quote_type: 'EQUITY',
+      last_price: last.close ?? null,
+      change: (last.close ?? 0) - (previous.close ?? 0),
+      change_percent: previous.close ? (((last.close ?? 0) - previous.close) / previous.close) * 100 : null,
+      open: last.open ?? null,
+      high: last.high ?? null,
+      low: last.low ?? null,
+      previous_close: previous.close ?? null,
+      day_high: last.high ?? null,
+      day_low: last.low ?? null,
+      year_high: Math.max(...history.map(point => point.high ?? 0)),
+      year_low: Math.min(...history.map(point => point.low ?? 0)),
+      fifty_day_average: base + 5,
+      two_hundred_day_average: base + 11,
+      volume: last.volume ?? null,
+      average_volume: 1250000,
+      market_cap: 1000000000000,
+      source: 'static-fallback',
+      as_of: last.timestamp,
+    },
+    history,
+  }
+}
+
 const fallbackDashboard = (): DashboardData => {
   const sorted = [...FALLBACK_COMPANIES].sort((a, b) => (b.latest_score?.current_esg_score ?? 0) - (a.latest_score?.current_esg_score ?? 0))
   return {
@@ -159,28 +203,7 @@ const fallbackMatrix = (): MatrixData => ({
   })),
 })
 
-const fallbackQuantAnalytics = (companyId: number): CompanyQuantAnalytics => {
-  const company = fallbackCompanyById(companyId) ?? FALLBACK_COMPANIES[0]
-  const score = company.latest_score ?? buildScore(company.ticker ?? 'GEN', companyId)
-  const signalQuality = Math.max(35, Math.min(85, 50 + (score.momentum_score * 0.4) - (score.controversy_risk * 0.2)))
-  return {
-    company_id: companyId,
-    lookback_points: 8,
-    esg_trend_slope: Number(((score.current_esg_score - 50) / 25).toFixed(2)),
-    momentum_acceleration: Number((score.momentum_score / 10).toFixed(2)),
-    max_esg_drawdown_pct: Number((Math.max(2, 22 - score.current_esg_score * 0.2)).toFixed(2)),
-    downside_risk: Number((Math.max(0.2, score.controversy_risk / 35)).toFixed(2)),
-    risk_adjusted_momentum: Number((score.momentum_score * (1 - score.controversy_risk / 100)).toFixed(2)),
-    signal_quality_score: Number(signalQuality.toFixed(2)),
-    positive_signal_ratio: Number(Math.max(10, Math.min(90, 50 + score.momentum_score * 0.8)).toFixed(2)),
-    evidence_coverage_ratio: Number(Math.max(20, Math.min(100, 45 + score.current_esg_score * 0.5)).toFixed(2)),
-    data_freshness_days: 7,
-    regime: score.momentum_score > 20 ? 'Compounding Upside' : score.momentum_score < -20 ? 'De-Rating Risk' : 'Transition',
-  }
-}
-
 const withFallback = async <T>(request: Promise<T>, fallback: () => T): Promise<T> => {
-  if (isHostedFallbackOnly()) return fallback()
   try {
     return await request
   } catch {
@@ -216,25 +239,7 @@ export const searchCompanies = (query?: string | CompanySearchParams) => {
         || (company.country ?? '').toLowerCase().includes(search)
       )
     },
-  ).then((companies) => {
-    const requestedCountry = typeof query === 'string'
-      ? ''
-      : String(params.country ?? '').trim().toLowerCase()
-    const requestedText = typeof query === 'string'
-      ? query.trim().toLowerCase()
-      : String(params.q ?? '').trim().toLowerCase()
-    const wantsSingapore = requestedCountry === 'singapore' || requestedText.includes('singapore') || requestedText.includes('sgx')
-
-    if (!wantsSingapore) return companies
-
-    const singaporeFallback = FALLBACK_COMPANIES.filter(company => (company.country ?? '').toLowerCase() === 'singapore')
-    const merged = new Map<string, Company>()
-    for (const company of [...companies, ...singaporeFallback]) {
-      if (!company.ticker) continue
-      merged.set(company.ticker.toUpperCase(), company)
-    }
-    return Array.from(merged.values())
-  })
+  )
 }
 
 export const getCompany = (id: number) =>
@@ -327,23 +332,37 @@ export const getStockData = (companyId: number, range: StockRange) =>
     http.get<StockData>(`/companies/${companyId}/stock-data`, {
       params: { range },
     }).then(r => r.data),
-    () => null,
-  )
-
-export const getCompanyQuantAnalytics = (companyId: number, lookbackPoints = 12) =>
-  withFallback(
-    http.get<CompanyQuantAnalytics>(`/companies/${companyId}/quant-analytics`, {
-      params: { lookback_points: lookbackPoints },
-    }).then(r => r.data),
-    () => fallbackQuantAnalytics(companyId),
-  )
-
-export const getAllDividends = (includeZero = true, limit = 300) =>
-  withFallback(
-    http.get<DividendSummary[]>('/dashboard/dividends', {
-      params: { include_zero: includeZero, limit },
-    }).then(r => r.data),
-    () => [],
+    () => fallbackStockData(companyId, range) ?? {
+      company_id: companyId,
+      company_name: 'Unknown',
+      ticker: '',
+      range,
+      quote: {
+        symbol: '',
+        currency: 'USD',
+        exchange: null,
+        quote_type: null,
+        last_price: null,
+        change: null,
+        change_percent: null,
+        open: null,
+        high: null,
+        low: null,
+        previous_close: null,
+        day_high: null,
+        day_low: null,
+        year_high: null,
+        year_low: null,
+        fifty_day_average: null,
+        two_hundred_day_average: null,
+        volume: null,
+        average_volume: null,
+        market_cap: null,
+        source: 'static-fallback',
+        as_of: nowIso(),
+      },
+      history: [],
+    },
   )
 
 // ─── Signals ─────────────────────────────────────────────────────────────────
@@ -379,66 +398,3 @@ export const getMatrix = () =>
     http.get<MatrixData>('/matrix').then(r => r.data),
     () => fallbackMatrix(),
   )
-
-// ─── Auth & Account ─────────────────────────────────────────────────────────
-
-export type LoginPayload = { email: string; password: string }
-export type RegisterPayload = LoginPayload & Partial<UserPreferences> & { full_name?: string | null; ui_preferences?: Record<string, unknown> }
-export type ResetPasswordPayload = { email: string }
-export type ResetPasswordConfirmPayload = { token: string; password: string }
-export type UpdateProfilePayload = { email?: string; full_name?: string | null; investing_style?: string }
-
-export const getCurrentUser = () => http.get<UserProfile>('/auth/me').then(r => r.data)
-
-export const register = (payload: RegisterPayload) => http.post<AuthResponse>('/auth/register', payload).then(r => r.data)
-
-export const login = (payload: LoginPayload) => http.post<AuthResponse>('/auth/login', payload).then(r => r.data)
-
-export const googleLogin = (credential: string) => http.post<AuthResponse>('/auth/google', { credential }).then(r => r.data)
-
-export const logout = () => http.post('/auth/logout').then(r => r.data)
-
-export const requestPasswordReset = (payload: ResetPasswordPayload) => http.post('/auth/forgot-password', payload).then(r => r.data)
-
-export const confirmPasswordReset = (payload: ResetPasswordConfirmPayload) => http.post('/auth/reset-password', payload).then(r => r.data)
-
-export const getProfile = () => http.get<UserProfile>('/account/profile').then(r => r.data)
-
-export const updateProfile = (payload: UpdateProfilePayload) => http.put<UserProfile>('/account/profile', payload).then(r => r.data)
-
-export const updatePreferences = (payload: UpdatePreferencesPayload) => http.put<UserProfile>('/account/preferences', payload).then(r => r.data)
-
-export const getNotifications = (limit = 50, unreadOnly = false) =>
-  http.get<NotificationItem[]>('/account/notifications', { params: { limit, unread_only: unreadOnly } }).then(r => r.data)
-
-export const markNotificationRead = (notificationId: number) =>
-  http.post<NotificationItem>(`/account/notifications/${notificationId}/read`).then(r => r.data)
-
-export const markAllNotificationsRead = () =>
-  http.post('/account/notifications/read-all').then(r => r.data)
-
-export const getWatchlist = () => http.get<Company[]>('/account/watchlist').then(r => r.data)
-
-export const addWatchlistItem = (companyId: number) => http.post(`/account/watchlist/${companyId}`).then(r => r.data)
-
-export const removeWatchlistItem = (companyId: number) => http.delete(`/account/watchlist/${companyId}`).then(r => r.data)
-
-export const getFavorites = () => http.get<Company[]>('/account/favorites').then(r => r.data)
-
-export const addFavoriteItem = (companyId: number) => http.post(`/account/favorites/${companyId}`).then(r => r.data)
-
-export const removeFavoriteItem = (companyId: number) => http.delete(`/account/favorites/${companyId}`).then(r => r.data)
-
-export const getAccountReports = () => http.get<Report[]>('/account/reports').then(r => r.data)
-
-export const renameReport = (reportId: number, fileName: string) => http.patch<Report>(`/account/reports/${reportId}`, { file_name: fileName }).then(r => r.data)
-
-export const deleteReport = (reportId: number) => http.delete(`/account/reports/${reportId}`).then(r => r.data)
-
-export const exportAccount = () => http.get<AccountExportBundle>('/account/export').then(r => r.data)
-
-export const importAccount = (file: File, overwrite = false) => {
-  const form = new FormData()
-  form.append('file', file)
-  return http.post('/account/import', form, { params: overwrite ? { overwrite: true } : {} , headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
-}

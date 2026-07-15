@@ -9,7 +9,6 @@ class Report(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     company_id = Column(Integer, ForeignKey("companies.id"), nullable=False)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     file_name = Column(String(500), nullable=False)
     year = Column(Integer, nullable=True)
     uploaded_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -18,4 +17,3 @@ class Report(Base):
     status = Column(String(50), default="pending")  # pending, processing, done, failed
 
     company = relationship("Company", back_populates="reports")
-    owner = relationship("User", back_populates="reports")
