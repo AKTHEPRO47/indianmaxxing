@@ -23,6 +23,13 @@ export type SignalCategory =
 
 export type Sentiment = 'positive' | 'negative' | 'neutral'
 
+export interface NotificationPreferences {
+  enabled: boolean
+  live_price_alerts: boolean
+  price_move_threshold_pct: number
+  market_open_countries: Array<'Singapore' | 'United States' | 'Hong Kong'>
+}
+
 // ─── API Response Types ───────────────────────────────────────────────────────
 
 export interface Company {
@@ -98,11 +105,96 @@ export interface Signal {
 export interface Report {
   id: number
   company_id: number
+  user_id?: number | null
   file_name: string
   year: number | null
   uploaded_at: string | null
   status: 'pending' | 'processing' | 'done' | 'failed'
   page_count: number | null
+}
+
+export interface UserPreferences {
+  theme_mode: 'light' | 'dark' | 'system'
+  accent_color: 'slate' | 'rose' | 'emerald' | 'blue' | 'violet' | 'amber'
+  dashboard_layout: 'comfortable' | 'compact' | 'analytics'
+  card_density: 'comfortable' | 'compact' | 'dense'
+  ui_preferences: Record<string, unknown>
+  notification_preferences: NotificationPreferences
+}
+
+export interface UserProfile extends UserPreferences {
+  id: number
+  email: string
+  full_name: string | null
+  investing_style: string
+  is_active: boolean
+  google_connected: boolean
+}
+
+export interface NotificationItem {
+  id: number
+  user_id: number
+  company_id: number | null
+  trigger_type: string
+  channel: string
+  title: string
+  body: string
+  deep_link: string | null
+  metadata: Record<string, unknown>
+  status: string
+  read_at: string | null
+  delivered_at: string | null
+  created_at: string | null
+}
+
+export interface AuthResponse {
+  user: UserProfile
+}
+
+export interface AccountExportBundle {
+  profile: UserProfile
+  watchlist: number[]
+  favorites: number[]
+  reports: Report[]
+}
+
+export interface LoginPayload {
+  email: string
+  password: string
+}
+
+export interface RegisterPayload extends LoginPayload {
+  full_name?: string | null
+  investing_style?: string
+  theme_mode?: UserPreferences['theme_mode']
+  accent_color?: UserPreferences['accent_color']
+  dashboard_layout?: UserPreferences['dashboard_layout']
+  card_density?: UserPreferences['card_density']
+  ui_preferences?: Record<string, unknown>
+}
+
+export interface ResetPasswordPayload {
+  email: string
+}
+
+export interface ResetPasswordConfirmPayload {
+  token: string
+  password: string
+}
+
+export interface UpdateProfilePayload {
+  email?: string
+  full_name?: string | null
+  investing_style?: string
+}
+
+export interface UpdatePreferencesPayload {
+  theme_mode?: UserPreferences['theme_mode']
+  accent_color?: UserPreferences['accent_color']
+  dashboard_layout?: UserPreferences['dashboard_layout']
+  card_density?: UserPreferences['card_density']
+  ui_preferences?: Record<string, unknown>
+  notification_preferences?: Partial<NotificationPreferences>
 }
 
 export interface StockPricePoint {
@@ -112,6 +204,19 @@ export interface StockPricePoint {
   low: number | null
   close: number | null
   volume: number | null
+}
+
+export interface DividendPoint {
+  date: string
+  amount: number
+}
+
+export interface QuarterlyProgressPoint {
+  period: string
+  revenue: number | null
+  earnings: number | null
+  revenue_growth: number | null
+  earnings_growth: number | null
 }
 
 export interface StockQuote {
@@ -146,6 +251,26 @@ export interface StockData {
   range: StockRange
   quote: StockQuote
   history: StockPricePoint[]
+  dividends: DividendPoint[]
+  quarterly_progress: QuarterlyProgressPoint[]
+  annual_dividend: number | null
+  dividend_yield: number | null
+  last_dividend_date: string | null
+}
+
+export interface CompanyQuantAnalytics {
+  company_id: number
+  lookback_points: number
+  esg_trend_slope: number
+  momentum_acceleration: number
+  max_esg_drawdown_pct: number
+  downside_risk: number
+  risk_adjusted_momentum: number
+  signal_quality_score: number
+  positive_signal_ratio: number
+  evidence_coverage_ratio: number
+  data_freshness_days: number | null
+  regime: string
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
@@ -156,6 +281,19 @@ export interface DashboardData {
   recent_controversies: Signal[]
   watchlist: Company[]
   market_summary: string
+}
+
+export interface DividendSummary {
+  company_id: number
+  company_name: string
+  ticker: string
+  exchange: string | null
+  country: string | null
+  annual_dividend: number | null
+  dividend_yield: number | null
+  last_dividend_date: string | null
+  payout_count: number
+  status: string
 }
 
 // ─── Matrix ───────────────────────────────────────────────────────────────────

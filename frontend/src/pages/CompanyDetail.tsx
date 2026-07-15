@@ -1,23 +1,28 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, RefreshCw, BookOpen, MessageSquare, AlertTriangle,
   TrendingUp, Globe, Building, ChevronRight, ExternalLink, Lightbulb,
   Download, Printer, Link2, Newspaper, ZoomIn, ZoomOut, BarChart3,
+  Bookmark, BookmarkCheck, Flame, Sparkles,
+  Coins,
 } from 'lucide-react'
 import {
   getCompany, getScoreHistory, getEvidence, getCompanyReports, getStockData, calculateScores, searchCompanies,
+  addWatchlistItem, removeWatchlistItem, getWatchlist, getCompanyQuantAnalytics,
 } from '../api/client'
-import type { Company, ScoreSnapshot, Evidence, Report, StockData, StockRange } from '../types'
+import type { Company, ScoreSnapshot, Evidence, Report, StockData, StockRange, CompanyQuantAnalytics } from '../types'
 import MomentumChart from '../components/MomentumChart'
 import StockPriceChart from '../components/StockPriceChart'
 import EvidenceDrawer from '../components/EvidenceDrawer'
 import CopilotChat from '../components/CopilotChat'
+import AILabPanel from '../components/AILabPanel'
 import AIAdoptionPanel from '../components/AIAdoptionPanel'
 import ControversyTimeline from '../components/ControversyTimeline'
 import PeerBenchmarkTable from '../components/PeerBenchmarkTable'
 import ESGMatrix from '../components/ESGMatrix'
 import ScoreBreakdownChart from '../components/ScoreBreakdownChart'
+import QuantAnalyticsPanel from '../components/QuantAnalyticsPanel'
 import { ClassificationBadge, InvestorSignalBadge } from '../components/InvestorSignalBadge'
 import CompanyLogo from '../components/CompanyLogo'
 import ScoreRing from '../components/ScoreRing'
@@ -29,7 +34,7 @@ import {
 import { buildPeRatioLink, downloadTextFile } from '../utils/links'
 import { clsx } from 'clsx'
 
-type Tab = 'overview' | 'evidence' | 'signals' | 'copilot' | 'peers'
+type Tab = 'overview' | 'ai-lab' | 'dividends' | 'evidence' | 'signals' | 'copilot' | 'peers'
 type ChartMetric = 'all' | 'esg' | 'momentum' | 'ai' | 'risk'
 type ChartRange = 'all' | 'year' | 'half' | 'quarter'
 
@@ -57,6 +62,9 @@ export default function CompanyDetail() {
   const [chartRange, setChartRange] = useState<ChartRange>('all')
   const [chartZoom, setChartZoom] = useState(0)
   const [comparisonPeerId, setComparisonPeerId] = useState<number | null>(null)
+  const [savedToWatchlist, setSavedToWatchlist] = useState(false)
+  const [watchlistBusy, setWatchlistBusy] = useState(false)
+  const [quantAnalytics, setQuantAnalytics] = useState<CompanyQuantAnalytics | null>(null)
 
   useEffect(() => {
     if (!companyId) return
@@ -66,13 +74,17 @@ export default function CompanyDetail() {
       getScoreHistory(companyId),
       getEvidence(companyId),
       getCompanyReports(companyId),
+      getWatchlist(),
+      getCompanyQuantAnalytics(companyId),
     ])
-      .then(([co, sc, ev, rp]) => {
+      .then(([co, sc, ev, rp, wl, qa]) => {
         setCompany(co)
         setScores(sc)
         setEvidence(ev)
         setReports(rp)
+        setQuantAnalytics(qa)
         setSelectedReportId(rp[0]?.id ?? null)
+        setSavedToWatchlist(wl.some(item => item.id === companyId))
         // Load peers (all companies for comparison)
         searchCompanies().then(all => {
           const peerList = all.filter(c => c.id !== companyId).slice(0, 5)
@@ -84,35 +96,33 @@ export default function CompanyDetail() {
       .finally(() => setLoading(false))
   }, [companyId])
 
-  useEffect(() => {
+  const loadStockData = useCallback(async () => {
     if (!company?.ticker) {
       setStockData(null)
       setStockError('This company does not have a ticker symbol.')
       return
     }
 
-    let cancelled = false
     setStockLoading(true)
     setStockError(null)
 
-    getStockData(companyId, stockRange)
-      .then(data => {
-        if (!cancelled) setStockData(data)
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setStockData(null)
-          setStockError('Unable to load live market data right now.')
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setStockLoading(false)
-      })
-
-    return () => {
-      cancelled = true
+    try {
+      const data = await getStockData(companyId, stockRange)
+      setStockData(data)
+      if (!data) {
+        setStockError('Live market data is temporarily unavailable.')
+      }
+    } catch {
+      setStockData(null)
+      setStockError('Unable to load live market data right now.')
+    } finally {
+      setStockLoading(false)
     }
-  }, [companyId, company?.ticker, stockRange])
+  }, [company?.ticker, companyId, stockRange])
+
+  useEffect(() => {
+    void loadStockData()
+  }, [loadStockData])
 
   useEffect(() => {
     setChartZoom(0)
@@ -129,6 +139,21 @@ export default function CompanyDetail() {
       setError('Score recalculation failed.')
     } finally {
       setRecalculating(false)
+    }
+  }
+
+  const handleToggleWatchlist = async () => {
+    setWatchlistBusy(true)
+    try {
+      if (savedToWatchlist) {
+        await removeWatchlistItem(companyId)
+        setSavedToWatchlist(false)
+      } else {
+        await addWatchlistItem(companyId)
+        setSavedToWatchlist(true)
+      }
+    } finally {
+      setWatchlistBusy(false)
     }
   }
 
@@ -149,6 +174,28 @@ export default function CompanyDetail() {
   if (error || !company) return <ErrorScreen message={error ?? 'Company not found'} onBack={() => navigate('/')} />
 
   const latest = company.latest_score
+  const greedIndex = latest
+    ? Math.max(0, Math.min(100, Math.round(
+      50
+      + latest.momentum_score * 0.7
+      + (latest.current_esg_score - 50) * 0.2
+      - latest.controversy_risk * 0.5,
+    )))
+    : 50
+
+  const greedLabel = greedIndex >= 75 ? 'Extreme greed' : greedIndex >= 55 ? 'Greed' : greedIndex >= 45 ? 'Neutral' : greedIndex >= 25 ? 'Fear' : 'Extreme fear'
+  const dividendHistory = [...(stockData?.dividends ?? [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  const quarterlyProgress = stockData?.quarterly_progress ?? []
+  const annualDividend = stockData?.annual_dividend ?? dividendHistory.reduce((acc, point) => acc + point.amount, 0)
+  const dividendYield = stockData?.dividend_yield ?? (stockData?.quote.last_price && annualDividend ? (annualDividend / stockData.quote.last_price) * 100 : null)
+  const moneyFormatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: stockData?.quote.currency ?? 'USD',
+    notation: 'compact',
+    maximumFractionDigits: 2,
+  })
+  const formatMoney = (value: number | null | undefined) => (value === null || value === undefined ? '—' : moneyFormatter.format(value))
+
   const signals = evidence.filter(e => e.source_type === 'news').map(e => ({
     id: e.id, company_id: e.company_id, title: e.source_name ?? 'Signal',
     category: (e.category ?? 'neutral') as any, sentiment: null, severity: 0,
@@ -167,6 +214,8 @@ export default function CompanyDetail() {
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'Overview', icon: <TrendingUp className="w-3.5 h-3.5" /> },
+    { id: 'ai-lab', label: 'AI Lab', icon: <Sparkles className="w-3.5 h-3.5" /> },
+    { id: 'dividends', label: 'Dividends', icon: <Coins className="w-3.5 h-3.5" /> },
     { id: 'evidence', label: `Evidence (${evidence.length})`, icon: <BookOpen className="w-3.5 h-3.5" /> },
     { id: 'signals', label: 'News', icon: <Newspaper className="w-3.5 h-3.5" /> },
     { id: 'copilot', label: 'AI Copilot', icon: <MessageSquare className="w-3.5 h-3.5" /> },
@@ -177,6 +226,7 @@ export default function CompanyDetail() {
   const visibleEvidence = selectedReportId ? evidence.filter(ev => ev.report_id === selectedReportId) : evidence
   const selectedReport = reports.find(report => report.id === selectedReportId) ?? null
   const comparisonPeer = peers.find(peer => peer.id === comparisonPeerId) ?? peers[0] ?? null
+  const previousScore = scores[1] ?? null
 
   const buildComparisonReport = () => {
     if (!comparisonPeer || !company.latest_score || !comparisonPeer.latest_score) return ''
@@ -357,6 +407,10 @@ export default function CompanyDetail() {
             )}
 
             <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              <button onClick={handleToggleWatchlist} disabled={watchlistBusy} className="btn-secondary text-xs">
+                {savedToWatchlist ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+                {savedToWatchlist ? 'Saved to Watchlist' : 'Save to Watchlist'}
+              </button>
               {company.website_url && (
                 <a href={company.website_url} target="_blank" rel="noreferrer" className="btn-secondary text-xs">
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -383,6 +437,24 @@ export default function CompanyDetail() {
             </button>
           </div>
         </div>
+
+        {latest && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-[220px_1fr] items-center rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+            <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+              <Flame className="h-4 w-4" />
+              Greed Index
+            </div>
+            <div>
+              <div className="flex items-center justify-between text-xs text-amber-800">
+                <span>{greedLabel}</span>
+                <span>{greedIndex}/100</span>
+              </div>
+              <div className="mt-2 h-2 rounded-full bg-amber-100 overflow-hidden">
+                <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500" style={{ width: `${greedIndex}%` }} />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="card p-4 no-print">
@@ -575,6 +647,7 @@ export default function CompanyDetail() {
             loading={stockLoading}
             selectedRange={stockRange}
             onRangeChange={setStockRange}
+            onRefresh={loadStockData}
           />
 
           {stockError && (
@@ -582,6 +655,8 @@ export default function CompanyDetail() {
               {stockError}
             </div>
           )}
+
+          <QuantAnalyticsPanel analytics={quantAnalytics} />
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Chart */}
@@ -707,6 +782,105 @@ export default function CompanyDetail() {
             </div>
             <ScoreBreakdownChart scores={scoreBreakdown} height={220} />
           </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'ai-lab' && (
+        <AILabPanel
+          company={company}
+          latest={latest ?? null}
+          previousScore={previousScore}
+          signals={signals}
+          stockData={stockData}
+          onOpenCopilot={() => setTab('copilot')}
+        />
+      )}
+
+      {tab === 'dividends' && (
+        <div className="space-y-5">
+          <div className="grid gap-4 md:grid-cols-4">
+            <div className="card p-4">
+              <div className="section-label mb-1">Annual dividend</div>
+              <div className="text-2xl font-bold text-slate-900">{formatMoney(annualDividend)}</div>
+              <div className="text-xs text-slate-400">Per share, trailing 12 months</div>
+            </div>
+            <div className="card p-4">
+              <div className="section-label mb-1">Dividend yield</div>
+              <div className="text-2xl font-bold text-emerald-600">{dividendYield === null ? '—' : `${dividendYield.toFixed(2)}%`}</div>
+              <div className="text-xs text-slate-400">Based on trailing dividends and last price</div>
+            </div>
+            <div className="card p-4">
+              <div className="section-label mb-1">Last dividend</div>
+              <div className="text-2xl font-bold text-slate-900">{dividendHistory[0] ? formatMoney(dividendHistory[0].amount) : '—'}</div>
+              <div className="text-xs text-slate-400">{stockData?.last_dividend_date ? formatDate(stockData.last_dividend_date) : 'No dividend record'}</div>
+            </div>
+            <div className="card p-4">
+              <div className="section-label mb-1">Quarterly snapshots</div>
+              <div className="text-2xl font-bold text-slate-900">{quarterlyProgress.length}</div>
+              <div className="text-xs text-slate-400">Latest revenue and earnings updates</div>
+            </div>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <div className="card p-5">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="font-semibold text-slate-900 text-sm">Dividend history</h2>
+                  <p className="text-xs text-slate-400">Most recent payments from Yahoo Finance data.</p>
+                </div>
+                <Coins className="h-4 w-4 text-amber-600" />
+              </div>
+              {dividendHistory.length === 0 ? (
+                <div className="text-sm text-slate-400">No dividend history available for this ticker.</div>
+              ) : (
+                <div className="space-y-2">
+                  {dividendHistory.map(point => (
+                    <div key={point.date} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                      <div className="text-sm font-medium text-slate-900">{formatDate(point.date)}</div>
+                      <div className="text-sm font-semibold text-amber-700">{formatMoney(point.amount)}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="card p-5">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <h2 className="font-semibold text-slate-900 text-sm">Quarterly progress</h2>
+                  <p className="text-xs text-slate-400">Revenue and earnings momentum by quarter.</p>
+                </div>
+                <BarChart3 className="h-4 w-4 text-blue-600" />
+              </div>
+              {quarterlyProgress.length === 0 ? (
+                <div className="text-sm text-slate-400">No quarterly financial data available for this ticker.</div>
+              ) : (
+                <div className="space-y-3">
+                  {quarterlyProgress.map(point => {
+                    const barWidth = stockData?.quarterly_progress.reduce((max, item) => Math.max(max, item.revenue ?? 0), 0) ?? 1
+                    const width = point.revenue ? Math.max(8, Math.round((point.revenue / Math.max(barWidth, 1)) * 100)) : 8
+                    return (
+                      <div key={point.period} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold text-slate-900">{formatDate(point.period)}</div>
+                            <div className="text-xs text-slate-400">Revenue {formatMoney(point.revenue)} · Earnings {formatMoney(point.earnings)}</div>
+                          </div>
+                          <div className="text-right text-xs text-slate-500">
+                            <div>Rev {point.revenue_growth === null ? '—' : `${point.revenue_growth.toFixed(1)}%`}</div>
+                            <div>EPS/NI {point.earnings_growth === null ? '—' : `${point.earnings_growth.toFixed(1)}%`}</div>
+                          </div>
+                        </div>
+                        <div className="mt-3 h-2 rounded-full bg-slate-200 overflow-hidden">
+                          <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500" style={{ width: `${width}%` }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

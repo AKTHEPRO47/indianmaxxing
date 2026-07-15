@@ -3,16 +3,21 @@ import {
   HeartPulse,
   BarChart2,
   Grid2x2,
+  Coins,
   Upload,
+  UserRound,
   ChevronRight,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import CompanyLogo from './CompanyLogo'
+import { useAuth } from '../context/AuthContext'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: <BarChart2 className="h-4 w-4" /> },
   { to: '/matrix', label: 'ESG Matrix', icon: <Grid2x2 className="h-4 w-4" /> },
+  { to: '/dividends', label: 'Dividends', icon: <Coins className="h-4 w-4" /> },
   { to: '/upload', label: 'Upload Report', icon: <Upload className="h-4 w-4" /> },
+  { to: '/account', label: 'Account', icon: <UserRound className="h-4 w-4" /> },
 ]
 
 const WATCHLIST = [
@@ -30,6 +35,7 @@ interface Props {
 
 export default function Sidebar({ collapsed }: Props) {
   const { pathname } = useLocation()
+  const { user } = useAuth()
 
   return (
     <aside className={clsx(
@@ -42,8 +48,9 @@ export default function Sidebar({ collapsed }: Props) {
         </div>
         {!collapsed && (
           <div>
-            <div className="text-sm font-semibold text-slate-900">ESG Momentum</div>
-            <div className="text-xs text-slate-500">AI ESG cockpit</div>
+            <div className="text-sm font-semibold text-slate-900">Tricard</div>
+            <div className="text-xs text-slate-500">Investing intelligence studio</div>
+            {user && <div className="mt-1 text-[10px] uppercase tracking-wider text-emerald-600">Signed in · {user.email}</div>}
           </div>
         )}
       </div>

@@ -23,6 +23,7 @@ export const TICKER_DOMAINS: Record<string, string> = {
   TSM:   'tsmc.com',
   SONY:  'sony.com',
   MU:    'micron.com',
+  SNDK:  'sandisk.com',
   NIO:   'nio.com',
   TMC:   'metals.co',
   SPCX:  'simplify.us',

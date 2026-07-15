@@ -49,6 +49,7 @@ TICKER_DOMAINS = {
     'PFE': 'pfizer.com',
     'RIO': 'riotinto.com',
     'SAP': 'sap.com',
+    'SNDK': 'sandisk.com',
     'SNPS': 'synopsys.com',
     'SBUX': 'starbucks.com',
     'SHEL': 'shell.com',
