@@ -18,3 +18,9 @@ frontend/dist/
 backend/uploads/
 test_small.pdf
 tsla-20251231-gen.pdf
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
