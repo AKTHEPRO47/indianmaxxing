@@ -1,0 +1,44 @@
+{
+  "name": "esg-momentum-engine-node",
+  "version": "2.0.0",
+  "description": "ESG Momentum Engine API — Node.js / Express rewrite with 20+ features",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "test:unit": "node --test \"../tests/Kota Neil Aryan/*.test.js\" \"../tests/Neelaansh/*.test.js\"",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:push": "prisma db push",
+    "seed": "node src/seed/seed.js",
+    "setup": "npm run prisma:push && npm run seed"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.14.0",
+    "axios": "^1.7.2",
+    "bcrypt": "^5.1.1",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.3.1",
+    "google-auth-library": "^9.11.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.14",
+    "node-cron": "^3.0.3",
+    "pdf-parse": "^1.1.1",
+    "speakeasy": "^2.0.0",
+    "uuid": "^10.0.0",
+    "ws": "^8.18.0",
+    "csv-parse": "^5.5.6",
+    "csv-stringify": "^6.4.6",
+    "morgan": "^1.10.0",
+    "qrcode": "^1.5.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4",
+    "prisma": "^5.14.0"
+  }
+}

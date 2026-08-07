@@ -64,3 +64,15 @@ export function Pill({ label, color = 'slate' }: PillProps) {
   }
   return <span className={clsx('badge', map[color])}>{label}</span>
 }
+
+/** Animated pulsing dot shown when controversy risk is high */
+export function ControversyPulse({ risk, className = '' }: { risk: number | null | undefined; className?: string }) {
+  if (risk == null || risk < 60) return null
+  const intensity = risk >= 80 ? 'bg-red-500' : 'bg-orange-400'
+  return (
+    <span className={clsx('relative inline-flex h-3 w-3', className)} title={`Controversy risk: ${risk}`}>
+      <span className={clsx('animate-ping absolute inline-flex h-full w-full rounded-full opacity-60', intensity)} />
+      <span className={clsx('relative inline-flex rounded-full h-3 w-3', intensity)} />
+    </span>
+  )
+}

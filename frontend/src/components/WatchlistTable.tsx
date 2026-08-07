@@ -2,16 +2,29 @@ import { useNavigate } from 'react-router-dom'
 import type { Company } from '../types'
 import { ClassificationBadge, InvestorSignalBadge } from './InvestorSignalBadge'
 import { momentumArrow, momentumColor, esgScoreColor, fmt0, fmtPct } from '../utils/helpers'
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { Bookmark, BookmarkCheck, Heart, HeartOff, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { clsx } from 'clsx'
 import CompanyLogo from './CompanyLogo'
 
 interface Props {
   companies: Company[]
   caption?: string
+  savedCompanyIds?: number[]
+  favoriteCompanyIds?: number[]
+  busyCompanyId?: number | null
+  onToggleWatchlist?: (company: Company, saved: boolean) => void | Promise<void>
+  onToggleFavorite?: (company: Company, saved: boolean) => void | Promise<void>
 }
 
-export default function WatchlistTable({ companies, caption }: Props) {
+export default function WatchlistTable({
+  companies,
+  caption,
+  savedCompanyIds = [],
+  favoriteCompanyIds = [],
+  busyCompanyId = null,
+  onToggleWatchlist,
+  onToggleFavorite,
+}: Props) {
   const navigate = useNavigate()
 
   return (
@@ -26,6 +39,8 @@ export default function WatchlistTable({ companies, caption }: Props) {
             <th className="text-right py-2 px-3 section-label font-semibold hidden md:table-cell">Controversy</th>
             <th className="text-right py-2 px-3 section-label font-semibold">Classification</th>
             <th className="text-right py-2 px-3 section-label font-semibold hidden lg:table-cell">Signal</th>
+            <th className="text-right py-2 px-3 section-label font-semibold">Saved</th>
+            <th className="text-right py-2 px-3 section-label font-semibold">Favorite</th>
           </tr>
         </thead>
         <tbody>
@@ -33,6 +48,9 @@ export default function WatchlistTable({ companies, caption }: Props) {
             const s = c.latest_score
             const mom = s?.momentum_score ?? 0
             const MomIcon = mom > 5 ? TrendingUp : mom < -5 ? TrendingDown : Minus
+            const saved = savedCompanyIds.includes(c.id)
+            const favorited = favoriteCompanyIds.includes(c.id)
+            const busy = busyCompanyId === c.id
 
             return (
               <tr
@@ -86,6 +104,36 @@ export default function WatchlistTable({ companies, caption }: Props) {
                 </td>
                 <td className="py-3 px-3 text-right hidden lg:table-cell">
                   {s ? <InvestorSignalBadge signal={s.investor_signal} /> : <span className="text-slate-300">—</span>}
+                </td>
+                <td className="py-3 px-3 text-right">
+                  {onToggleWatchlist ? (
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onToggleWatchlist(c, saved)
+                      }}
+                      disabled={busy}
+                      className={clsx('inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold border transition-colors', saved ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}
+                    >
+                      {saved ? <BookmarkCheck className="h-3.5 w-3.5" /> : <Bookmark className="h-3.5 w-3.5" />}
+                      {busy ? 'Saving...' : saved ? 'Saved' : 'Save'}
+                    </button>
+                  ) : <span className="text-slate-300">—</span>}
+                </td>
+                <td className="py-3 px-3 text-right">
+                  {onToggleFavorite ? (
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        onToggleFavorite(c, favorited)
+                      }}
+                      disabled={busy}
+                      className={clsx('inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold border transition-colors', favorited ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}
+                    >
+                      {favorited ? <Heart className="h-3.5 w-3.5 fill-current" /> : <HeartOff className="h-3.5 w-3.5" />}
+                      {busy ? 'Saving...' : favorited ? 'Saved' : 'Favorite'}
+                    </button>
+                  ) : <span className="text-slate-300">—</span>}
                 </td>
               </tr>
             )

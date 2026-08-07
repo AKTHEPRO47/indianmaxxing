@@ -10,6 +10,7 @@ interface Props {
   interactive?: boolean
   selectedId?: number | null
   showTickerLabels?: boolean
+  zoomLevel?: number
   onPointClick?: (entry: MatrixEntry) => void
 }
 
@@ -22,27 +23,44 @@ const classColor: Record<string, string> = {
   'Risk Alert':       '#dc2626',
 }
 
-const logoFallback = (ticker: string, name: string) =>
-  `https://ui-avatars.com/api/?name=${encodeURIComponent((ticker ?? name).slice(0, 3).toUpperCase())}&background=0f172a&color=ffffff&size=64&bold=true&format=svg`
-
 const CustomDot = (props: any) => {
   const { cx, cy, payload } = props
   const color = classColor[payload.classification] ?? '#94a3b8'
   const selected = payload.selected
-  const logoSrc = payload.entry?.company?.logo_url || logoFallback(payload.ticker, payload.name)
+  const outerR = selected ? 14 : 11
+  const innerR = selected ? 10 : 8
+  const logoSrc = payload.entry?.company?.logo_url
+  const initials = (payload.ticker || payload.name || '?').slice(0, 3).toUpperCase()
   return (
     <g className={clsx('transition-all duration-150', selected && 'drop-shadow-md')}>
-      <circle cx={cx} cy={cy} r={selected ? 14 : 11} fill={color} fillOpacity={selected ? 0.16 : 0.10} />
-      <circle cx={cx} cy={cy} r={selected ? 10.5 : 8.5} fill="#ffffff" fillOpacity={0.92} stroke={color} strokeOpacity={0.18} strokeWidth={1} />
-      <image
-        href={logoSrc}
-        x={cx - (selected ? 7 : 6)}
-        y={cy - (selected ? 7 : 6)}
-        width={selected ? 14 : 12}
-        height={selected ? 14 : 12}
-        preserveAspectRatio="xMidYMid meet"
-      />
-      <title>{payload.name}</title>
+      {selected && <circle cx={cx} cy={cy} r={outerR + 4} fill={color} fillOpacity={0.08} />}
+      <circle cx={cx} cy={cy} r={outerR} fill={color} fillOpacity={selected ? 0.18 : 0.10} />
+      <circle cx={cx} cy={cy} r={innerR} fill="#ffffff" stroke={color} strokeWidth={selected ? 1.5 : 1} strokeOpacity={0.35} />
+      {/* Ticker initials — always visible, hidden by logo image when it loads */}
+      <text
+        x={cx}
+        y={cy + (selected ? 3.5 : 2.8)}
+        textAnchor="middle"
+        fontSize={selected ? 6 : 5}
+        fontWeight="700"
+        fill={color}
+        letterSpacing="-0.3"
+        style={{ pointerEvents: 'none', userSelect: 'none' }}
+      >
+        {initials.slice(0, 2)}
+      </text>
+      {/* Logo image — when loaded it covers the text */}
+      {logoSrc && (
+        <image
+          href={logoSrc}
+          x={cx - (selected ? 8 : 6.5)}
+          y={cy - (selected ? 8 : 6.5)}
+          width={selected ? 16 : 13}
+          height={selected ? 16 : 13}
+          preserveAspectRatio="xMidYMid meet"
+        />
+      )}
+      <title>{payload.name} ({payload.ticker})</title>
     </g>
   )
 }
@@ -75,14 +93,26 @@ const MatrixTooltip = ({ active, payload }: any) => {
   )
 }
 
+// Axis domain steps for each zoom level: [xMin, xMax, yMin, yMax]
+const ZOOM_DOMAINS: [number, number, number, number][] = [
+  [0, 100, -100, 100],
+  [10, 90, -80, 80],
+  [20, 80, -60, 60],
+  [28, 72, -42, 42],
+  [35, 65, -28, 28],
+  [40, 60, -18, 18],
+]
+
 export default function ESGMatrix({
   entries,
   height = 420,
   interactive = true,
   selectedId = null,
   showTickerLabels = true,
+  zoomLevel = 0,
   onPointClick,
 }: Props) {
+  const [xMin, xMax, yMin, yMax] = ZOOM_DOMAINS[Math.min(Math.max(0, zoomLevel), ZOOM_DOMAINS.length - 1)]
   const navigate = useNavigate()
 
   const data = entries.map(e => ({
@@ -127,7 +157,7 @@ export default function ESGMatrix({
             type="number"
             dataKey="x"
             name="ESG Score"
-            domain={[0, 100]}
+            domain={[xMin, xMax]}
             label={{ value: 'Current ESG Score →', position: 'insideBottom', offset: -10, fill: '#94a3b8', fontSize: 11 }}
             tick={{ fontSize: 11, fill: '#94a3b8' }}
             axisLine={false}
@@ -137,7 +167,7 @@ export default function ESGMatrix({
             type="number"
             dataKey="y"
             name="Momentum"
-            domain={[-100, 100]}
+            domain={[yMin, yMax]}
             label={{ value: 'ESG Momentum →', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 11, offset: 10 }}
             tick={{ fontSize: 11, fill: '#94a3b8' }}
             axisLine={false}
@@ -169,8 +199,8 @@ export default function ESGMatrix({
       {showTickerLabels && (
         <div className="absolute inset-0 pointer-events-none" style={{ top: 10, left: 60, right: 30, bottom: 50 }}>
           {data.map(d => {
-          const xPct = ((d.x - 0) / 100) * 100
-          const yPct = ((100 - (d.y + 100) / 200 * 100))
+          const xPct = ((d.x - xMin) / (xMax - xMin)) * 100
+          const yPct = ((yMax - d.y) / (yMax - yMin)) * 100
           return (
             <div
               key={d.id}

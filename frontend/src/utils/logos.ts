@@ -6,6 +6,7 @@ export const TICKER_DOMAINS: Record<string, string> = {
   GOOGL: 'google.com',
   GOOG:  'google.com',
   META:  'meta.com',
+  SPACEX: 'spacex.com',
   AMZN:  'amazon.com',
   NVDA:  'nvidia.com',
   ORCL:  'oracle.com',

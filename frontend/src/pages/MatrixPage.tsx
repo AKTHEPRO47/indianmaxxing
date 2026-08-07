@@ -60,6 +60,54 @@ function normalizeIndustry(industry?: string | null) {
   return industry.toLowerCase().includes('semiconductor') ? 'Semiconductors' : industry
 }
 
+function parseMarketCapValue(company: MatrixEntry['company']): number | null {
+  if (company.market_cap_value !== undefined && company.market_cap_value !== null) return company.market_cap_value
+  const raw = company.market_cap ?? ''
+  const normalized = raw.replace(/[$,\s]/g, '').toUpperCase()
+  const match = normalized.match(/^([0-9]*\.?[0-9]+)([TBMK])?$/)
+  if (!match) return null
+  const amount = Number(match[1])
+  if (Number.isNaN(amount)) return null
+  const multiplier = match[2] === 'T' ? 1_000_000_000_000 : match[2] === 'B' ? 1_000_000_000 : match[2] === 'M' ? 1_000_000 : match[2] === 'K' ? 1_000 : 1
+  return amount * multiplier
+}
+
+function getMarketCapBand(value: number | null): 'N/A' | 'MICRO' | 'SMALL' | 'MID' | 'LARGE' | 'MEGA' {
+  if (value === null) return 'N/A'
+  if (value < 2_000_000_000) return 'MICRO'
+  if (value < 10_000_000_000) return 'SMALL'
+  if (value < 50_000_000_000) return 'MID'
+  if (value < 200_000_000_000) return 'LARGE'
+  return 'MEGA'
+}
+
+function getPeBand(value: number | null): 'N/A' | 'NEGATIVE' | 'LOW' | 'MID' | 'HIGH' | 'VERY_HIGH' {
+  if (value === null || value <= 0) return 'N/A'
+  if (value < 15) return 'LOW'
+  if (value < 25) return 'MID'
+  if (value < 40) return 'HIGH'
+  return 'VERY_HIGH'
+}
+
+function getDividendYieldBand(value: number | null): 'N/A' | 'ZERO' | 'LOW' | 'MID' | 'HIGH' {
+  if (value === null || value <= 0) return 'N/A'
+  if (value < 2) return 'LOW'
+  if (value < 5) return 'MID'
+  return 'HIGH'
+}
+
+function getBetaBand(value: number | null): 'N/A' | 'DEFENSIVE' | 'MARKET' | 'HIGH' {
+  if (value === null) return 'N/A'
+  if (value < 0.8) return 'DEFENSIVE'
+  if (value <= 1.2) return 'MARKET'
+  return 'HIGH'
+}
+
+function formatMetricValue(value: number | null | undefined, digits = 1) {
+  if (value === null || value === undefined || Number.isNaN(value)) return '—'
+  return value.toFixed(digits)
+}
+
 export default function MatrixPage() {
   const [data, setData] = useState<MatrixData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -67,6 +115,10 @@ export default function MatrixPage() {
   const [industryFilter, setIndustryFilter] = useState('ALL')
   const [countryFilter, setCountryFilter] = useState('ALL')
   const [categoryFilter, setCategoryFilter] = useState('ALL')
+  const [marketCapFilter, setMarketCapFilter] = useState('ALL')
+  const [peFilter, setPeFilter] = useState('ALL')
+  const [dividendYieldFilter, setDividendYieldFilter] = useState('ALL')
+  const [betaFilter, setBetaFilter] = useState('ALL')
   const [quadrantFocus, setQuadrantFocus] = useState<'ALL' | MatrixEntry['classification']>('ALL')
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [chartZoom, setChartZoom] = useState(0)
@@ -91,12 +143,16 @@ export default function MatrixPage() {
       && (industryFilter === 'ALL' || normalizeIndustry(entry.company.industry) === industryFilter)
       && (countryFilter === 'ALL' || entry.company.country === countryFilter)
       && (categoryFilter === 'ALL' || entry.classification === categoryFilter)
+      && (marketCapFilter === 'ALL' || getMarketCapBand(parseMarketCapValue(entry.company)) === marketCapFilter)
+      && (peFilter === 'ALL' || getPeBand(entry.company.pe_ratio ?? null) === peFilter)
+      && (dividendYieldFilter === 'ALL' || getDividendYieldBand(entry.company.dividend_yield ?? null) === dividendYieldFilter)
+      && (betaFilter === 'ALL' || getBetaBand(entry.company.beta ?? null) === betaFilter)
     ))
-  }, [allEntries, exchangeFilter, industryFilter, countryFilter, categoryFilter])
+  }, [allEntries, exchangeFilter, industryFilter, countryFilter, categoryFilter, marketCapFilter, peFilter, dividendYieldFilter, betaFilter])
 
   useEffect(() => {
     setChartZoom(0)
-  }, [exchangeFilter, industryFilter, countryFilter, categoryFilter])
+  }, [exchangeFilter, industryFilter, countryFilter, categoryFilter, marketCapFilter, peFilter, dividendYieldFilter, betaFilter])
 
   useEffect(() => {
     if (filteredEntries.length === 0) {
@@ -142,11 +198,8 @@ export default function MatrixPage() {
     color: label === 'NASDAQ' ? '#3b82f6' : label === 'NYSE' ? '#10b981' : '#94a3b8',
   }))
 
-  const maxChartZoom = Math.max(0, Math.floor((filteredEntries.length - 6) / 2))
-  const visibleCount = chartZoom > 0
-    ? Math.max(6, filteredEntries.length - chartZoom * 2)
-    : filteredEntries.length
-  const visibleEntries = filteredEntries.slice(0, visibleCount)
+  const maxChartZoom = 5
+  const visibleEntries = filteredEntries
 
   const quadrantFocusEntries = useMemo(() => {
     if (quadrantFocus === 'ALL') return filteredEntries
@@ -203,6 +256,9 @@ export default function MatrixPage() {
               <ZoomOut className="w-3.5 h-3.5" />
               Zoom out
             </button>
+            {chartZoom > 0 && (
+              <span className="text-slate-400 font-mono">{chartZoom}×</span>
+            )}
             <button onClick={() => setChartZoom(z => Math.min(maxChartZoom, z + 1))} disabled={chartZoom >= maxChartZoom} className="btn-secondary text-xs disabled:opacity-50 disabled:cursor-not-allowed">
               <ZoomIn className="w-3.5 h-3.5" />
               Zoom in
@@ -223,6 +279,60 @@ export default function MatrixPage() {
           <select value={countryFilter} onChange={e => setCountryFilter(e.target.value)} className="input-base py-2 px-3 text-xs">
             {countryOptions.map(option => <option key={option}>{option}</option>)}
           </select>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-white/70 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="section-label mb-1">Financial filters</div>
+              <div className="text-sm text-slate-500">Narrow the matrix by valuation, yield, and balance-sheet style metrics.</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setMarketCapFilter('ALL')
+                setPeFilter('ALL')
+                setDividendYieldFilter('ALL')
+                setBetaFilter('ALL')
+              }}
+              className="btn-secondary text-xs"
+            >
+              Reset financial filters
+            </button>
+          </div>
+
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 text-xs">
+            <select value={marketCapFilter} onChange={e => setMarketCapFilter(e.target.value)} className="input-base py-2 px-3 text-xs">
+              <option value="ALL">Market cap: All</option>
+              <option value="MICRO">Micro (&lt;$2B)</option>
+              <option value="SMALL">Small ($2B-$10B)</option>
+              <option value="MID">Mid ($10B-$50B)</option>
+              <option value="LARGE">Large ($50B-$200B)</option>
+              <option value="MEGA">Mega ($200B+)</option>
+            </select>
+            <select value={peFilter} onChange={e => setPeFilter(e.target.value)} className="input-base py-2 px-3 text-xs">
+              <option value="ALL">PE ratio: All</option>
+              <option value="N/A">PE ratio: N/A / negative</option>
+              <option value="LOW">PE ratio: 0-15</option>
+              <option value="MID">PE ratio: 15-25</option>
+              <option value="HIGH">PE ratio: 25-40</option>
+              <option value="VERY_HIGH">PE ratio: 40+</option>
+            </select>
+            <select value={dividendYieldFilter} onChange={e => setDividendYieldFilter(e.target.value)} className="input-base py-2 px-3 text-xs">
+              <option value="ALL">Dividend yield: All</option>
+              <option value="N/A">Dividend yield: N/A / 0%</option>
+              <option value="LOW">Dividend yield: 0-2%</option>
+              <option value="MID">Dividend yield: 2-5%</option>
+              <option value="HIGH">Dividend yield: 5%+</option>
+            </select>
+            <select value={betaFilter} onChange={e => setBetaFilter(e.target.value)} className="input-base py-2 px-3 text-xs">
+              <option value="ALL">Beta: All</option>
+              <option value="N/A">Beta: N/A</option>
+              <option value="DEFENSIVE">Beta: &lt; 0.8</option>
+              <option value="MARKET">Beta: 0.8-1.2</option>
+              <option value="HIGH">Beta: &gt; 1.2</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -288,6 +398,7 @@ export default function MatrixPage() {
             height={560}
             showTickerLabels={false}
             selectedId={selectedId}
+            zoomLevel={chartZoom}
             onPointClick={(entry) => setSelectedId(entry.company.id)}
           />
         )}
@@ -309,6 +420,17 @@ export default function MatrixPage() {
                 <div className={clsx('text-2xl font-bold', selectedEntry.momentum_score > 0 ? 'text-emerald-600' : 'text-red-500')}>
                   {selectedEntry.momentum_score > 0 ? '+' : ''}{selectedEntry.momentum_score.toFixed(1)}
                 </div>
+              </div>
+            </div>
+            <div className="mt-3 rounded-xl border border-slate-200 bg-white/80 p-3">
+              <div className="section-label mb-2">Financial profile</div>
+              <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
+                <div>Market cap: <span className="font-semibold text-slate-900">{selectedEntry.company.market_cap ?? '—'}</span></div>
+                <div>PE ratio: <span className="font-semibold text-slate-900">{formatMetricValue(selectedEntry.company.pe_ratio)}</span></div>
+                <div>Forward PE: <span className="font-semibold text-slate-900">{formatMetricValue(selectedEntry.company.forward_pe)}</span></div>
+                <div>Dividend yield: <span className="font-semibold text-slate-900">{selectedEntry.company.dividend_yield === null || selectedEntry.company.dividend_yield === undefined ? '—' : `${selectedEntry.company.dividend_yield.toFixed(2)}%`}</span></div>
+                <div>Beta: <span className="font-semibold text-slate-900">{formatMetricValue(selectedEntry.company.beta)}</span></div>
+                <div>P/B: <span className="font-semibold text-slate-900">{formatMetricValue(selectedEntry.company.price_to_book)}</span></div>
               </div>
             </div>
             <button onClick={() => setSelectedId(selectedEntry.company.id)} className="mt-4 btn-secondary text-xs w-full justify-center">

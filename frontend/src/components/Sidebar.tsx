@@ -1,18 +1,24 @@
 import { Link, useLocation } from 'react-router-dom'
 import {
-  HeartPulse,
   BarChart2,
   Grid2x2,
+  Coins,
   Upload,
+  UserRound,
   ChevronRight,
+  Sparkles,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import CompanyLogo from './CompanyLogo'
+import { useAuth } from '../context/AuthContext'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Dashboard', icon: <BarChart2 className="h-4 w-4" /> },
   { to: '/matrix', label: 'ESG Matrix', icon: <Grid2x2 className="h-4 w-4" /> },
+  { to: '/portfolio-optimizer', label: 'Portfolio Optimizer', icon: <Sparkles className="h-4 w-4" />, badge: 'NEW' },
+  { to: '/dividends', label: 'Dividends', icon: <Coins className="h-4 w-4" /> },
   { to: '/upload', label: 'Upload Report', icon: <Upload className="h-4 w-4" /> },
+  { to: '/account', label: 'Account', icon: <UserRound className="h-4 w-4" /> },
 ]
 
 const WATCHLIST = [
@@ -30,6 +36,7 @@ interface Props {
 
 export default function Sidebar({ collapsed }: Props) {
   const { pathname } = useLocation()
+  const { user } = useAuth()
 
   return (
     <aside className={clsx(
@@ -37,13 +44,12 @@ export default function Sidebar({ collapsed }: Props) {
       collapsed ? 'w-20' : 'w-72'
     )}>
       <div className={clsx('flex h-16 items-center border-b border-slate-200/80', collapsed ? 'justify-center px-3' : 'gap-3 px-5')}>
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-700 via-red-600 to-blue-600 shadow-sm ring-1 ring-slate-200">
-          <HeartPulse className="h-5 w-5 text-white" />
-        </div>
+        <img src="/image.png" alt="Tricard logo" className="h-10 w-10 rounded-2xl object-cover shadow-sm ring-1 ring-slate-200" />
         {!collapsed && (
           <div>
-            <div className="text-sm font-semibold text-slate-900">ESG Momentum</div>
-            <div className="text-xs text-slate-500">AI ESG cockpit</div>
+            <div className="text-sm font-semibold text-slate-900">Tricard</div>
+            <div className="text-xs text-slate-500">Investing intelligence studio</div>
+            {user && <div className="mt-1 text-[10px] uppercase tracking-wider text-emerald-600">Signed in · {user.email}</div>}
           </div>
         )}
       </div>
@@ -70,6 +76,9 @@ export default function Sidebar({ collapsed }: Props) {
                   {item.icon}
                 </span>
                 {!collapsed && <span className="flex-1">{item.label}</span>}
+                {!collapsed && 'badge' in item && item.badge && (
+                  <span className="rounded-full bg-violet-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">{item.badge}</span>
+                )}
                 {!collapsed && <ChevronRight className={clsx('h-4 w-4 transition-transform', active ? 'text-white/70' : 'text-slate-300 group-hover:translate-x-0.5 group-hover:text-slate-500')} />}
               </Link>
             )

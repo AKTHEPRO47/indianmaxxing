@@ -27,6 +27,7 @@ export const COMPANY_CATALOG: CatalogCompany[] = [
   c('AMZN', 'Amazon.com Inc.', 'NASDAQ', 'Technology / E-Commerce', 'United States', '$1.9T', 'https://logo.clearbit.com/amazon.com?size=128'),
   c('META', 'Meta Platforms Inc.', 'NASDAQ', 'Technology / Social Media', 'United States', '$1.4T', 'https://logo.clearbit.com/meta.com?size=128'),
   c('GOOGL', 'Alphabet Inc. Class A', 'NASDAQ', 'Technology / Internet', 'United States', '$2.2T', 'https://logo.clearbit.com/google.com?size=128'),
+  c('SPACEX', 'SpaceX', 'PRIVATE', 'Aerospace / Space Transportation', 'United States', '$180B', 'https://logo.clearbit.com/spacex.com?size=128'),
   c('SPCX', 'SPAC and New Issue ETF', 'NYSEARCA', 'ETF', 'United States', '$0.3B', 'https://logo.clearbit.com/simplify.us?size=128'),
   c('MU', 'Micron Technology, Inc.', 'NASDAQ', 'Semiconductors', 'United States', '$170B', 'https://logo.clearbit.com/micron.com?size=128'),
   c('QCOM', 'QUALCOMM Incorporated', 'NASDAQ', 'Semiconductors / Wireless', 'United States', '$210B', 'https://www.google.com/s2/favicons?domain=qualcomm.com&sz=128'),
@@ -98,6 +99,19 @@ export const COMPANY_CATALOG: CatalogCompany[] = [
   c('RIO', 'Rio Tinto Group', 'NYSE', 'Materials / Mining', 'United Kingdom', '$120B', 'https://logo.clearbit.com/riotinto.com?size=128'),
   c('BHP', 'BHP Group Limited', 'NYSE', 'Materials / Mining', 'Australia', '$150B', 'https://logo.clearbit.com/bhp.com?size=128'),
   c('Z74.SI', 'Singapore Telecommunications Limited', 'SGX', 'Telecommunications', 'Singapore', '$28B', 'https://logo.clearbit.com/singtel.com?size=128'),
+
+  // ── New additions: SanDisk/WDC, ETFs, DRAM ────────────────────────────────
+  c('WDC',   'Western Digital Corporation (SanDisk)',  'NASDAQ',   'Storage / Semiconductors',        'United States', '$20B',  'https://www.google.com/s2/favicons?domain=westerndigital.com&sz=128'),
+  c('SPY',   'SPDR S&P 500 ETF Trust',                 'NYSEARCA', 'ETF / Index',                     'United States', '$570B', 'https://www.google.com/s2/favicons?domain=ssga.com&sz=128'),
+  c('QQQ',   'Invesco QQQ Trust (NASDAQ-100)',          'NASDAQ',   'ETF / Technology',                'United States', '$340B', 'https://www.google.com/s2/favicons?domain=invesco.com&sz=128'),
+  c('VOO',   'Vanguard S&P 500 ETF',                   'NYSEARCA', 'ETF / Index',                     'United States', '$550B', 'https://www.google.com/s2/favicons?domain=vanguard.com&sz=128'),
+  c('GLD',   'SPDR Gold Shares ETF',                   'NYSEARCA', 'ETF / Commodities',               'United States', '$72B',  'https://www.google.com/s2/favicons?domain=spdrgoldshares.com&sz=128'),
+  c('VTI',   'Vanguard Total Stock Market ETF',        'NYSEARCA', 'ETF / Total Market',              'United States', '$480B', 'https://www.google.com/s2/favicons?domain=vanguard.com&sz=128'),
+  c('DIA',   'SPDR Dow Jones Industrial Average ETF',  'NYSEARCA', 'ETF / Index',                     'United States', '$38B',  'https://www.google.com/s2/favicons?domain=ssga.com&sz=128'),
+  c('TLT',   'iShares 20+ Year Treasury Bond ETF',     'NASDAQ',   'ETF / Fixed Income',              'United States', '$56B',  'https://www.google.com/s2/favicons?domain=ishares.com&sz=128'),
+  c('SSNLF', 'Samsung Electronics Co., Ltd.',          'OTC',      'Semiconductors / DRAM',           'South Korea',   '$290B', 'https://www.google.com/s2/favicons?domain=samsung.com&sz=128'),
+  c('HXSCL', 'SK Hynix Inc.',                          'OTC',      'Semiconductors / DRAM',           'South Korea',   '$95B',  'https://www.google.com/s2/favicons?domain=skhynix.com&sz=128'),
+  c('ON',    'ON Semiconductor Corporation (onsemi)',  'NASDAQ',   'Semiconductors / Power',          'United States', '$25B',  'https://www.google.com/s2/favicons?domain=onsemi.com&sz=128'),
 ]
 
 const byTicker = new Map(COMPANY_CATALOG.map(item => [item.ticker.toUpperCase(), item]))

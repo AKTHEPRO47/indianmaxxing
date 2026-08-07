@@ -1,0 +1,368 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────────────────────
+// USER & AUTH
+// ──────────────────────────────────────────────────────────
+
+model User {
+  id                          Int      @id @default(autoincrement())
+  email                       String   @unique
+  passwordHash                String?
+  googleSub                   String?  @unique
+  fullName                    String?
+  avatarUrl                   String?
+  bio                         String?
+  timezone                    String   @default("UTC")
+  language                    String   @default("en")
+  investingStyle              String   @default("balanced")
+  themeMode                   String   @default("light")
+  accentColor                 String   @default("slate")
+  dashboardLayout             String   @default("comfortable")
+  cardDensity                 String   @default("comfortable")
+  uiPreferencesJson           String   @default("{}")
+  notificationPreferencesJson String   @default("{}")
+  isActive                    Boolean  @default(true)
+  isAdmin                     Boolean  @default(false)
+  emailVerified               Boolean  @default(false)
+  emailVerifyToken            String?
+  twoFactorSecret             String?
+  twoFactorEnabled            Boolean  @default(false)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  sessions       UserSession[]
+  passwordResets PasswordResetToken[]
+  watchlistItems UserWatchlistItem[]
+  favoriteItems  UserFavoriteItem[]
+  reports        Report[]
+  notifications  Notification[]
+  apiKeys        ApiKey[]
+  portfolios     Portfolio[]
+  alertRules     AlertRule[]
+  activityLogs   ActivityLog[]
+  companyTags    UserCompanyTag[]
+}
+
+model UserSession {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  tokenHash String    @unique
+  userAgent String?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Extra Feature 1: API Keys for programmatic access
+model ApiKey {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  name       String
+  keyHash    String    @unique
+  keyPrefix  String
+  scopes     String    @default("read")
+  isActive   Boolean   @default(true)
+  lastUsedAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ──────────────────────────────────────────────────────────
+// COMPANY & ESG CORE
+// ──────────────────────────────────────────────────────────
+
+model Company {
+  id            Int     @id @default(autoincrement())
+  name          String
+  ticker        String? @unique
+  exchange      String?
+  industry      String?
+  country       String?
+  description   String?
+  logoUrl       String?
+  websiteUrl    String?
+  executiveName String?
+  executiveUrl  String?
+  marketCap          String?
+  annualDividend     Float?
+  dividendYield      Float?
+  lastDividendDate   String?
+  payoutFrequency    String?
+
+  reports        Report[]
+  evidences      Evidence[]
+  esgMetrics     ESGMetric[]
+  signals        Signal[]
+  scoreSnapshots ScoreSnapshot[]
+  watchlistItems UserWatchlistItem[]
+  favoriteItems  UserFavoriteItem[]
+  notifications  Notification[]
+  portfolioItems PortfolioItem[]
+  alertRules     AlertRule[]
+  companyTags    UserCompanyTag[]
+  peerMembers    PeerGroupMember[]
+}
+
+model Report {
+  id                Int      @id @default(autoincrement())
+  companyId         Int
+  userId            Int?
+  fileName          String
+  year              Int?
+  uploadedAt        DateTime @default(now())
+  extractedTextPath String?
+  pageCount         Int?
+  status            String   @default("pending")
+  shareToken        String?  @unique
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  owner      User?       @relation(fields: [userId], references: [id])
+  evidences  Evidence[]
+  esgMetrics ESGMetric[]
+}
+
+model Evidence {
+  id              Int      @id @default(autoincrement())
+  companyId       Int
+  reportId        Int?
+  sourceType      String
+  sourceName      String?
+  sourceDate      String?
+  pageNumber      Int?
+  url             String?
+  evidenceText    String
+  category        String?
+  confidenceScore Float    @default(0.5)
+  createdAt       DateTime @default(now())
+
+  company    Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  report     Report?     @relation(fields: [reportId], references: [id])
+  esgMetrics ESGMetric[]
+}
+
+model ESGMetric {
+  id              Int      @id @default(autoincrement())
+  companyId       Int
+  reportId        Int?
+  metricName      String
+  pillar          String
+  value           Float?
+  unit            String?
+  year            Int?
+  confidenceScore Float    @default(0.5)
+  evidenceId      Int?
+  createdAt       DateTime @default(now())
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  report   Report?   @relation(fields: [reportId], references: [id])
+  evidence Evidence? @relation(fields: [evidenceId], references: [id])
+}
+
+model Signal {
+  id              Int      @id @default(autoincrement())
+  companyId       Int
+  title           String
+  category        String
+  sentiment       String?
+  severity        Float    @default(0.0)
+  date            String?
+  source          String?
+  explanation     String?
+  confidenceScore Float    @default(0.5)
+  createdAt       DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model ScoreSnapshot {
+  id                 Int      @id @default(autoincrement())
+  companyId          Int
+  currentEsgScore    Float
+  momentumScore      Float
+  aiAdoptionScore    Float
+  controversyRisk    Float
+  confidenceScore    Float
+  environmentalScore Float?
+  socialScore        Float?
+  governanceScore    Float?
+  classification     String
+  investorSignal     String
+  createdAt          DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+// ──────────────────────────────────────────────────────────
+// USER LISTS
+// ──────────────────────────────────────────────────────────
+
+model UserWatchlistItem {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  companyId Int
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+}
+
+model UserFavoriteItem {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  companyId Int
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+}
+
+model Notification {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  companyId    Int?
+  triggerType  String
+  channel      String    @default("IN_APP")
+  title        String
+  body         String
+  deepLink     String?
+  metadataJson String    @default("{}")
+  status       String    @default("delivered")
+  readAt       DateTime?
+  deliveredAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id])
+}
+
+// ──────────────────────────────────────────────────────────
+// EXTRA FEATURES
+// ──────────────────────────────────────────────────────────
+
+// Extra Feature 2: Portfolio tracking with ESG weighting
+model Portfolio {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  name        String
+  description String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items PortfolioItem[]
+}
+
+model PortfolioItem {
+  id          Int      @id @default(autoincrement())
+  portfolioId Int
+  companyId   Int
+  shares      Float    @default(0)
+  avgCost     Float?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  portfolio Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, companyId])
+}
+
+// Extra Feature 3: Custom alert rules
+model AlertRule {
+  id            Int       @id @default(autoincrement())
+  userId        Int
+  companyId     Int?
+  name          String
+  triggerType   String
+  threshold     Float?
+  operator      String    @default("gt")
+  isActive      Boolean   @default(true)
+  lastTriggered DateTime?
+  createdAt     DateTime  @default(now())
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company? @relation(fields: [companyId], references: [id])
+}
+
+// Extra Feature 4: Activity / audit log
+model ActivityLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  action     String
+  entityType String?
+  entityId   Int?
+  metadata   String   @default("{}")
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+}
+
+// Extra Feature 5: User-defined company tags
+model UserCompanyTag {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  companyId Int
+  tag       String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId, tag])
+}
+
+// Extra Feature 6: Peer groups for benchmarking
+model PeerGroup {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  industry    String?
+  createdAt   DateTime @default(now())
+
+  members PeerGroupMember[]
+}
+
+model PeerGroupMember {
+  id          Int @id @default(autoincrement())
+  peerGroupId Int
+  companyId   Int
+
+  peerGroup PeerGroup @relation(fields: [peerGroupId], references: [id], onDelete: Cascade)
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([peerGroupId, companyId])
+}
