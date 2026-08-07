@@ -62,7 +62,7 @@ export default function CompanySearchBar({ size = 'lg', placeholder = 'Search co
 
   return (
     <div ref={ref} className="relative w-full">
-      <div className={`relative flex items-center bg-white border ${isLg ? 'border-slate-300 rounded-2xl shadow-md' : 'border-slate-200 rounded-xl shadow-card'} transition-shadow focus-within:shadow-card-hover focus-within:border-emerald-400`}>
+      <div className={`relative flex items-center border bg-white dark:bg-slate-900 ${isLg ? 'border-slate-300 dark:border-slate-700 rounded-2xl shadow-md' : 'border-slate-200 dark:border-slate-700 rounded-xl shadow-card'} transition-shadow focus-within:shadow-card-hover focus-within:border-emerald-400`}>
         <Search className={`absolute left-4 text-slate-400 shrink-0 ${isLg ? 'w-5 h-5' : 'w-4 h-4'}`} />
         <input
           value={query}
@@ -88,31 +88,31 @@ export default function CompanySearchBar({ size = 'lg', placeholder = 'Search co
       </div>
 
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden">
+        <div className="absolute top-full left-0 right-0 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg z-50 dark:border-slate-700 dark:bg-slate-900">
           {loading && (
-            <div className="px-4 py-3 text-sm text-slate-500 flex items-center gap-2">
+            <div className="flex items-center gap-2 px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
               <div className="w-3 h-3 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
               Searching...
             </div>
           )}
           {!loading && results.length === 0 && (
-            <div className="px-4 py-3 text-sm text-slate-500">No companies found</div>
+            <div className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">No companies found</div>
           )}
           {results.map(c => (
             <button
               key={c.id}
               onClick={() => select(c)}
               title={`Open report for ${c.name}`}
-              className="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-50 transition-colors text-left border-b border-slate-100 last:border-0"
+              className="flex w-full items-center gap-3 border-b border-slate-100 px-4 py-3 text-left transition-colors last:border-0 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800"
             >
               <CompanyLogo ticker={c.ticker} name={c.name} logoUrl={c.logo_url} size="md" />
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-slate-900 text-sm truncate">{c.name}</div>
-                <div className="text-xs text-slate-500 truncate">{c.ticker} · {c.industry} · {c.country}</div>
+                <div className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">{c.name}</div>
+                <div className="truncate text-xs text-slate-500 dark:text-slate-400">{c.ticker} · {c.industry} · {c.country}</div>
               </div>
               {c.latest_score && (
                 <div className="flex flex-col items-end shrink-0">
-                  <div className="text-xs font-semibold text-slate-900">ESG {c.latest_score.current_esg_score.toFixed(0)}</div>
+                  <div className="text-xs font-semibold text-slate-900 dark:text-slate-100">ESG {c.latest_score.current_esg_score.toFixed(0)}</div>
                   <div className={`text-xs font-medium ${momentumColor(c.latest_score.momentum_score)}`}>
                     {momentumArrow(c.latest_score.momentum_score)} {c.latest_score.momentum_score > 0 ? '+' : ''}{c.latest_score.momentum_score.toFixed(0)}
                   </div>

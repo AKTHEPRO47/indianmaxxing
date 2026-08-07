@@ -9,9 +9,9 @@ import {
 } from 'lucide-react'
 import {
   getCompany, getScoreHistory, getEvidence, getCompanyReports, getStockData, calculateScores, searchCompanies,
-  addWatchlistItem, removeWatchlistItem, getWatchlist, getCompanyQuantAnalytics,
+  addWatchlistItem, removeWatchlistItem, getWatchlist, getCompanyQuantAnalytics, getNews,
 } from '../api/client'
-import type { Company, ScoreSnapshot, Evidence, Report, StockData, StockRange, CompanyQuantAnalytics } from '../types'
+import type { Company, ScoreSnapshot, Evidence, Report, StockData, StockRange, CompanyQuantAnalytics, NewsSignal } from '../types'
 import MomentumChart from '../components/MomentumChart'
 import StockPriceChart from '../components/StockPriceChart'
 import EvidenceDrawer from '../components/EvidenceDrawer'
@@ -69,6 +69,8 @@ export default function CompanyDetail() {
   const [watchlistBusy, setWatchlistBusy] = useState(false)
   const [quantAnalytics, setQuantAnalytics] = useState<CompanyQuantAnalytics | null>(null)
   const [showComparison, setShowComparison] = useState(false)
+  const [newsSignals, setNewsSignals] = useState<NewsSignal[]>([])
+  const [newsLoading, setNewsLoading] = useState(false)
 
   useEffect(() => {
     if (!companyId) return
@@ -80,13 +82,15 @@ export default function CompanyDetail() {
       getCompanyReports(companyId),
       getWatchlist(),
       getCompanyQuantAnalytics(companyId),
+      getNews(100, undefined, companyId),
     ])
-      .then(([co, sc, ev, rp, wl, qa]) => {
+      .then(([co, sc, ev, rp, wl, qa, news]) => {
         setCompany(co)
         setScores(sc)
         setEvidence(ev)
         setReports(rp)
         setQuantAnalytics(qa)
+        setNewsSignals(news)
         setSelectedReportId(rp[0]?.id ?? null)
         setSavedToWatchlist(wl.some(item => item.id === companyId))
         // Load peers (all companies for comparison)
@@ -99,6 +103,23 @@ export default function CompanyDetail() {
       .catch(() => setError('Failed to load company data.'))
       .finally(() => setLoading(false))
   }, [companyId])
+
+  useEffect(() => {
+    if (!companyId || tab !== 'signals') return
+
+    const loadNews = async () => {
+      setNewsLoading(true)
+      try {
+        setNewsSignals(await getNews(100, undefined, companyId))
+      } finally {
+        setNewsLoading(false)
+      }
+    }
+
+    void loadNews()
+    const interval = window.setInterval(() => void loadNews(), 60_000)
+    return () => window.clearInterval(interval)
+  }, [companyId, tab])
 
   const loadStockData = useCallback(async () => {
     if (!company?.ticker) {
@@ -200,13 +221,6 @@ export default function CompanyDetail() {
   })
   const formatMoney = (value: number | null | undefined) => (value === null || value === undefined ? '—' : moneyFormatter.format(value))
 
-  const signals = evidence.filter(e => e.source_type === 'news').map(e => ({
-    id: e.id, company_id: e.company_id, title: e.source_name ?? 'Signal',
-    category: (e.category ?? 'neutral') as any, sentiment: null, severity: 0,
-    date: e.source_date, source: e.source_name, explanation: e.evidence_text.slice(0, 200),
-    confidence_score: e.confidence_score,
-  }))
-
   // Build matrix entry for mini matrix
   const matrixEntries = latest ? [{
     company: { id: company.id, name: company.name, ticker: company.ticker, industry: company.industry, country: company.country, description: company.description, logo_url: company.logo_url, website_url: company.website_url, executive_name: company.executive_name, executive_url: company.executive_url, market_cap: company.market_cap },
@@ -221,7 +235,7 @@ export default function CompanyDetail() {
     { id: 'ai-lab', label: 'AI Lab', icon: <Sparkles className="w-3.5 h-3.5" /> },
     { id: 'dividends', label: 'Dividends', icon: <Coins className="w-3.5 h-3.5" /> },
     { id: 'evidence', label: `Evidence (${evidence.length})`, icon: <BookOpen className="w-3.5 h-3.5" /> },
-    { id: 'signals', label: 'News', icon: <Newspaper className="w-3.5 h-3.5" /> },
+    { id: 'signals', label: `News (${newsSignals.length})`, icon: <Newspaper className="w-3.5 h-3.5" /> },
     { id: 'copilot', label: 'AI Copilot', icon: <MessageSquare className="w-3.5 h-3.5" /> },
     { id: 'peers', label: 'Peer Compare', icon: <Globe className="w-3.5 h-3.5" /> },
   ]
@@ -297,7 +311,7 @@ export default function CompanyDetail() {
       return `${date} | ESG ${fmt1(snapshot.current_esg_score)} | Momentum ${snapshot.momentum_score > 0 ? '+' : ''}${fmt1(snapshot.momentum_score)} | AI ${fmt1(snapshot.ai_adoption_score)} | Risk ${fmt1(snapshot.controversy_risk)}`
     })
 
-    const newsLines = signals.slice(0, 5).map(signal => {
+    const newsLines = newsSignals.slice(0, 5).map(signal => {
       const date = signal.date ? formatDate(signal.date) : 'Unknown date'
       return `${date} | ${signal.title} | ${signal.source ?? 'Source'} | ${signal.category}`
     })
@@ -343,7 +357,7 @@ export default function CompanyDetail() {
     },
     latest_score: latest,
     score_history: scores,
-    recent_news: signals.slice(0, 10),
+    recent_news: newsSignals.slice(0, 10),
     evidence_count: evidence.length,
   }
 
@@ -774,7 +788,7 @@ export default function CompanyDetail() {
           {/* Recent signals */}
           <div className="card p-5 space-y-4">
             <h2 className="font-semibold text-slate-900 text-sm mb-4">Latest News</h2>
-            <ControversyTimeline signals={signals.slice(0, 5)} limit={5} />
+            <ControversyTimeline signals={newsSignals.slice(0, 5)} limit={5} />
           </div>
 
           <div className="card p-5">
@@ -817,7 +831,7 @@ export default function CompanyDetail() {
           company={company}
           latest={latest ?? null}
           previousScore={previousScore}
-          signals={signals}
+          signals={newsSignals}
           stockData={stockData}
           onOpenCopilot={() => setTab('copilot')}
         />
@@ -937,10 +951,17 @@ export default function CompanyDetail() {
 
       {tab === 'signals' && (
         <div className="card p-5">
-          <h2 className="font-semibold text-slate-900 mb-4">News & Signals</h2>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold text-slate-900">News & Signals</h2>
+              <p className="text-xs text-slate-400">Live RSS coverage and classified company signals.</p>
+            </div>
+            <span className="badge-slate">{newsSignals.length} items</span>
+          </div>
+          {newsLoading && <div className="mb-3 text-xs text-slate-400">Refreshing coverage...</div>}
           <ControversyTimeline
-            signals={signals}
-            limit={30}
+            signals={newsSignals}
+            limit={100}
           />
         </div>
       )}

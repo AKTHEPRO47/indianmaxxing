@@ -9,8 +9,11 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 import AccountPage from './pages/AccountPage'
 import PortfolioOptimizerPage from './pages/PortfolioOptimizerPage'
+import NewsPage from './pages/NewsPage'
+import WatchlistPage from './pages/WatchlistPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useEffect, useState } from 'react'
 import Sidebar from './components/Sidebar'
@@ -24,7 +27,7 @@ function ShellLayout() {
   }, [sidebarCollapsed])
 
   return (
-    <div className="min-h-screen app-grid-bg bg-slate-50 transition-colors">
+    <div className="min-h-screen app-grid-bg bg-slate-50 transition-colors dark:bg-slate-950">
       <div className="flex min-h-screen">
         <Sidebar collapsed={sidebarCollapsed} />
         <div className="flex min-w-0 flex-1 flex-col">
@@ -54,6 +57,7 @@ export default function App() {
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route element={<ProtectedRoute><ShellLayout /></ProtectedRoute>}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/companies/:id" element={<CompanyDetail />} />
@@ -62,6 +66,8 @@ export default function App() {
           <Route path="/upload" element={<UploadPage />} />
           <Route path="/account" element={<AccountPage />} />
           <Route path="/portfolio-optimizer" element={<PortfolioOptimizerPage />} />
+          <Route path="/news" element={<NewsPage />} />
+          <Route path="/watchlist" element={<WatchlistPage />} />
         </Route>
         <Route path="*" element={<PublicRedirect />} />
       </Routes>

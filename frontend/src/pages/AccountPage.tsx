@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Download, Upload, Trash2, Pencil, Save, Settings2, ShieldCheck, UserRound, Bell, CheckCheck, Circle, Globe2 } from 'lucide-react'
-import { addFavoriteItem, addWatchlistItem, deleteReport, exportAccount, getAccountReports, getFavorites, getNotifications, getProfile, getWatchlist, importAccount, markAllNotificationsRead, markNotificationRead, removeFavoriteItem, removeWatchlistItem, renameReport, updatePreferences, updateProfile } from '../api/client'
+import { addFavoriteItem, addWatchlistItem, deleteReport, exportAccount, getAccountReports, getFavorites, getNotificationChannelStatus, getNotifications, getProfile, getWatchlist, importAccount, markAllNotificationsRead, markNotificationRead, removeFavoriteItem, removeWatchlistItem, renameReport, updatePreferences, updateProfile } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import type { Company, NotificationItem, NotificationPreferences, Report, UserProfile } from '../types'
 import { countryFlagEmoji } from '../utils/flags'
@@ -17,6 +17,7 @@ export default function AccountPage() {
   const [editingReportId, setEditingReportId] = useState<number | null>(null)
   const [reportName, setReportName] = useState('')
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null)
+  const [channelStatus, setChannelStatus] = useState<{ telegram: { configured: boolean; bot_username: string | null }; discord: { configured: boolean }; email: { configured: boolean } } | null>(null)
 
   const accentPalette: Record<UserProfile['accent_color'], string> = {
     slate: '#0f172a',
@@ -29,6 +30,7 @@ export default function AccountPage() {
 
   const notificationPreferences: NotificationPreferences = profile?.notification_preferences ?? {
     enabled: true,
+    email_alerts: true,
     live_price_alerts: true,
     price_move_threshold_pct: 2.5,
     market_open_countries: ['Singapore', 'United States', 'Hong Kong'],
@@ -43,9 +45,10 @@ export default function AccountPage() {
         getFavorites(),
         getAccountReports(),
         getNotifications(),
+        getNotificationChannelStatus(),
       ])
 
-      const [profileResult, watchlistResult, favoritesResult, reportsResult, notificationsResult] = results
+      const [profileResult, watchlistResult, favoritesResult, reportsResult, notificationsResult, channelStatusResult] = results
 
       if (profileResult.status === 'fulfilled') {
         setProfile(profileResult.value)
@@ -59,6 +62,7 @@ export default function AccountPage() {
       if (favoritesResult.status === 'fulfilled') setFavorites(favoritesResult.value)
       if (reportsResult.status === 'fulfilled') setReports(reportsResult.value)
       if (notificationsResult.status === 'fulfilled') setNotifications(notificationsResult.value)
+      if (channelStatusResult.status === 'fulfilled') setChannelStatus(channelStatusResult.value)
 
       const fatal = profileResult.status === 'rejected' && !authUser
       if (fatal) {
@@ -217,6 +221,7 @@ export default function AccountPage() {
       || profile.accent_color !== authUser.accent_color
       || profile.dashboard_layout !== authUser.dashboard_layout
       || profile.card_density !== authUser.card_density
+      || JSON.stringify(profile.notification_preferences) !== JSON.stringify(authUser.notification_preferences)
     )
   )
 
@@ -363,6 +368,15 @@ export default function AccountPage() {
             />
           </label>
           <label className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+            <span>Email alert delivery</span>
+            <input
+              type="checkbox"
+              checked={notificationPreferences.email_alerts !== false}
+              onChange={e => setProfile(prev => prev ? { ...prev, notification_preferences: { ...notificationPreferences, email_alerts: e.target.checked } } : prev)}
+              className="h-4 w-4 rounded border-slate-300 text-blue-600"
+            />
+          </label>
+          <label className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
             <span>Live price alerts</span>
             <input
               type="checkbox"
@@ -371,6 +385,21 @@ export default function AccountPage() {
               className="h-4 w-4 rounded border-slate-300 text-blue-600"
             />
           </label>
+          <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex items-center justify-between gap-3">
+              <div className="font-semibold text-slate-900 dark:text-slate-100">Discord and Telegram setup</div>
+              <div className="flex gap-2 text-[10px] font-semibold uppercase tracking-wider">
+                <span className={channelStatus?.discord.configured ? 'text-emerald-600' : 'text-slate-400'}>Discord ready</span>
+                <span className={channelStatus?.telegram.configured ? 'text-emerald-600' : 'text-amber-600'}>{channelStatus?.telegram.configured ? 'Telegram ready' : 'Telegram needs server setup'}</span>
+              </div>
+            </div>
+            <ol className="list-decimal space-y-2 pl-5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">
+              <li>In Discord, create a channel webhook under Channel Settings, then paste its URL above.</li>
+              <li>For Telegram, start a chat with {channelStatus?.telegram.bot_username ? <a className="font-semibold text-blue-600 hover:underline" href={`https://t.me/${channelStatus.telegram.bot_username}`} target="_blank" rel="noreferrer">@{channelStatus.telegram.bot_username}</a> : 'the bot configured by your administrator'}, send <code>/start</code>, then paste the chat ID above.</li>
+              <li>Save notification settings, create or open an alert, then use its Test action to confirm delivery.</li>
+            </ol>
+            {!channelStatus?.telegram.configured && <p className="text-xs text-amber-700 dark:text-amber-300">An administrator must set <code>TELEGRAM_BOT_TOKEN</code> and <code>TELEGRAM_BOT_USERNAME</code> in <code>backend-node/.env</code>, then restart the backend.</p>}
+          </div>
           <label className="block text-sm">
             <span className="mb-2 block text-xs uppercase tracking-wider text-slate-500">Price move threshold (%)</span>
             <input
@@ -379,6 +408,37 @@ export default function AccountPage() {
               step="0.5"
               value={notificationPreferences.price_move_threshold_pct}
               onChange={e => setProfile(prev => prev ? { ...prev, notification_preferences: { ...notificationPreferences, price_move_threshold_pct: Number(e.target.value) || 0 } } : prev)}
+              className="input-base w-full"
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="mb-2 block text-xs uppercase tracking-wider text-slate-500">Delivery mode</span>
+            <select
+              value={notificationPreferences.delivery_mode ?? 'failover'}
+              onChange={e => setProfile(prev => prev ? { ...prev, notification_preferences: { ...notificationPreferences, delivery_mode: e.target.value as 'failover' | 'broadcast' } } : prev)}
+              className="input-base w-full"
+            >
+              <option value="failover">Failover: first successful channel</option>
+              <option value="broadcast">Broadcast: every configured channel</option>
+            </select>
+          </label>
+          <label className="block text-sm">
+            <span className="mb-2 block text-xs uppercase tracking-wider text-slate-500">Discord webhook URL</span>
+            <input
+              type="url"
+              value={notificationPreferences.discord_webhook_url ?? ''}
+              onChange={e => setProfile(prev => prev ? { ...prev, notification_preferences: { ...notificationPreferences, discord_webhook_url: e.target.value } } : prev)}
+              placeholder="https://discord.com/api/webhooks/..."
+              className="input-base w-full"
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="mb-2 block text-xs uppercase tracking-wider text-slate-500">Telegram chat ID</span>
+            <input
+              type="text"
+              value={notificationPreferences.telegram_chat_id ?? ''}
+              onChange={e => setProfile(prev => prev ? { ...prev, notification_preferences: { ...notificationPreferences, telegram_chat_id: e.target.value } } : prev)}
+              placeholder="Linked chat ID"
               className="input-base w-full"
             />
           </label>

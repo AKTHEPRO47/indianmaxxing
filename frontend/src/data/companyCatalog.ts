@@ -101,7 +101,8 @@ export const COMPANY_CATALOG: CatalogCompany[] = [
   c('Z74.SI', 'Singapore Telecommunications Limited', 'SGX', 'Telecommunications', 'Singapore', '$28B', 'https://logo.clearbit.com/singtel.com?size=128'),
 
   // ── New additions: SanDisk/WDC, ETFs, DRAM ────────────────────────────────
-  c('WDC',   'Western Digital Corporation (SanDisk)',  'NASDAQ',   'Storage / Semiconductors',        'United States', '$20B',  'https://www.google.com/s2/favicons?domain=westerndigital.com&sz=128'),
+  c('WDC',   'Western Digital Corporation',            'NASDAQ',   'Storage / Semiconductors',        'United States', '$20B',  'https://www.google.com/s2/favicons?domain=westerndigital.com&sz=128'),
+  c('SNDK',  'SanDisk Corporation',                    'NASDAQ',   'Storage / NAND Flash',            'United States', '$12B',  'https://www.google.com/s2/favicons?domain=sandisk.com&sz=128'),
   c('SPY',   'SPDR S&P 500 ETF Trust',                 'NYSEARCA', 'ETF / Index',                     'United States', '$570B', 'https://www.google.com/s2/favicons?domain=ssga.com&sz=128'),
   c('QQQ',   'Invesco QQQ Trust (NASDAQ-100)',          'NASDAQ',   'ETF / Technology',                'United States', '$340B', 'https://www.google.com/s2/favicons?domain=invesco.com&sz=128'),
   c('VOO',   'Vanguard S&P 500 ETF',                   'NYSEARCA', 'ETF / Index',                     'United States', '$550B', 'https://www.google.com/s2/favicons?domain=vanguard.com&sz=128'),

@@ -25,9 +25,14 @@ export type Sentiment = 'positive' | 'negative' | 'neutral'
 
 export interface NotificationPreferences {
   enabled: boolean
+  email_alerts?: boolean
   live_price_alerts: boolean
   price_move_threshold_pct: number
   market_open_countries: Array<'Singapore' | 'United States' | 'Hong Kong'>
+  discord_webhook_url?: string
+  telegram_chat_id?: string
+  delivery_mode?: 'failover' | 'broadcast'
+  channels_by_trigger?: Record<string, Array<'email' | 'discord' | 'telegram'>>
 }
 
 // ─── API Response Types ───────────────────────────────────────────────────────
@@ -106,6 +111,10 @@ export interface Signal {
   source: string | null
   explanation: string | null
   confidence_score: number
+}
+
+export interface NewsSignal extends Signal {
+  company: Pick<Company, 'id' | 'name' | 'ticker' | 'logo_url'>
 }
 
 export interface Report {

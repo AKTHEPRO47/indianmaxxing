@@ -1,15 +1,21 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 
 export default function ResetPasswordPage() {
-  const [token, setToken] = useState('')
+  const [searchParams] = useSearchParams()
+  const [token, setToken] = useState(() => searchParams.get('token') ?? '')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const { confirmPasswordReset } = useAuth()
+
+  useEffect(() => {
+    const linkedToken = searchParams.get('token')
+    if (linkedToken) setToken(linkedToken)
+  }, [searchParams])
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault()

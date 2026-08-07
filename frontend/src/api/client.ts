@@ -3,7 +3,7 @@ import { COMPANY_CATALOG } from '../data/companyCatalog'
 import type {
   Company, ScoreSnapshot, Evidence, Signal, Report,
   DashboardData, MatrixData, CopilotResponse, StockData, StockRange,
-  AuthResponse, UserProfile, UserPreferences, AccountExportBundle, NotificationItem, UpdatePreferencesPayload, CompanyQuantAnalytics, DividendSummary,
+  AuthResponse, UserProfile, UserPreferences, AccountExportBundle, NotificationItem, UpdatePreferencesPayload, CompanyQuantAnalytics, DividendSummary, NewsSignal,
 } from '../types'
 
 const BASE = '/api'
@@ -358,7 +358,7 @@ export const scanSignals = (companyId: number) =>
 
 export const askCopilot = (companyId: number, question: string) =>
   withFallback(
-    http.post<CopilotResponse>(`/companies/${companyId}/copilot`, { question }).then(r => r.data),
+    http.post<CopilotResponse>(`/companies/${companyId}/copilot`, { query: question }).then(r => r.data),
     () => ({
       answer: 'Static fallback mode is active because the hosted frontend cannot reach the API.',
       sources: fallbackEvidence(companyId),
@@ -379,6 +379,12 @@ export const getMatrix = () =>
     http.get<MatrixData>('/matrix').then(r => r.data),
     () => fallbackMatrix(),
   )
+
+export const getNews = (limit = 50, category?: string, companyId?: number) =>
+  http.get<NewsSignal[]>('/news', { params: { limit, ...(category ? { category } : {}), ...(companyId ? { company_id: companyId } : {}) } }).then(r => r.data)
+
+export const refreshNews = () =>
+  http.post<{ skipped: boolean; refreshed_companies: number; new_signals: number }>('/news/refresh').then(r => r.data)
 
 // ─── Auth & Account ─────────────────────────────────────────────────────────
 
@@ -402,7 +408,15 @@ export const requestPasswordReset = (payload: ResetPasswordPayload) => http.post
 
 export const confirmPasswordReset = (payload: ResetPasswordConfirmPayload) => http.post('/auth/reset-password', payload).then(r => r.data)
 
+export const verifyEmail = (token: string) => http.get('/auth/verify-email', { params: { token } }).then(r => r.data)
+
 export const getProfile = () => http.get<UserProfile>('/account/profile').then(r => r.data)
+
+export const getNotificationChannelStatus = () => http.get<{
+  telegram: { configured: boolean; bot_username: string | null }
+  discord: { configured: boolean }
+  email: { configured: boolean }
+}>('/account/notification-channels').then(r => r.data)
 
 export const updateProfile = (payload: UpdateProfilePayload) => http.put<UserProfile>('/account/profile', payload).then(r => r.data)
 

@@ -2,7 +2,7 @@
 import { format } from 'date-fns'
 import {
   ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip, ReferenceLine,
-  ComposedChart, Area, Bar, Line,
+  ComposedChart, Area, Bar, BarChart, Line,
 } from 'recharts'
 import { RefreshCw, TrendingUp, TrendingDown, Activity } from 'lucide-react'
 import type { StockData, StockRange } from '../types'
@@ -186,9 +186,49 @@ interface Props {
 }
 
 type Panel = 'rsi' | 'macd' | 'none'
+type ChartType = 'area' | 'line' | 'candles'
+
+function CandlestickChart({ data, currency }: { data: Array<{ timestamp: string; open: number | null; high: number | null; low: number | null; close: number | null }>; currency: string }) {
+  const candles = data.filter(point => point.open != null && point.high != null && point.low != null && point.close != null) as Array<{ timestamp: string; open: number; high: number; low: number; close: number }>
+  if (candles.length === 0) return <div className="flex h-64 items-center justify-center text-sm text-slate-400">OHLC data is unavailable for this range.</div>
+  const minimum = Math.min(...candles.map(point => point.low))
+  const maximum = Math.max(...candles.map(point => point.high))
+  const padding = Math.max((maximum - minimum) * 0.08, 0.01)
+  const lower = minimum - padding
+  const upper = maximum + padding
+  const height = 240
+  const width = 960
+  const y = (value: number) => 16 + ((upper - value) / (upper - lower)) * (height - 42)
+  const step = (width - 48) / candles.length
+  const bodyWidth = Math.max(2, Math.min(12, step * 0.64))
+
+  return (
+    <svg viewBox={`0 0 ${width} ${height}`} className="h-60 w-full" role="img" aria-label="Candlestick stock price chart">
+      <line x1="40" y1={y(upper)} x2={width - 8} y2={y(upper)} stroke="#e2e8f0" />
+      <line x1="40" y1={y(lower)} x2={width - 8} y2={y(lower)} stroke="#e2e8f0" />
+      <text x="0" y={y(upper) + 4} fontSize="11" fill="#94a3b8">{fmt(currency, upper)}</text>
+      <text x="0" y={y(lower) + 4} fontSize="11" fill="#94a3b8">{fmt(currency, lower)}</text>
+      {candles.map((point, index) => {
+        const x = 44 + index * step + step / 2
+        const gain = point.close >= point.open
+        const color = gain ? '#10b981' : '#ef4444'
+        const bodyTop = Math.min(y(point.open), y(point.close))
+        const bodyHeight = Math.max(1.5, Math.abs(y(point.open) - y(point.close)))
+        return (
+          <g key={`${point.timestamp}-${index}`}>
+            <title>{`${fmtTs(point.timestamp, '1mo')}: O ${fmt(currency, point.open)}, H ${fmt(currency, point.high)}, L ${fmt(currency, point.low)}, C ${fmt(currency, point.close)}`}</title>
+            <line x1={x} x2={x} y1={y(point.high)} y2={y(point.low)} stroke={color} strokeWidth="1.5" />
+            <rect x={x - bodyWidth / 2} y={bodyTop} width={bodyWidth} height={bodyHeight} fill={color} rx="1" />
+          </g>
+        )
+      })}
+    </svg>
+  )
+}
 
 export default function StockPriceChart({ data, loading = false, selectedRange, onRangeChange, onRefresh }: Props) {
   const [panel, setPanel] = useState<Panel>('rsi')
+  const [chartType, setChartType] = useState<ChartType>('area')
 
   const history = useMemo(
     () => [...(data?.history ?? [])].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()),
@@ -287,6 +327,16 @@ export default function StockPriceChart({ data, loading = false, selectedRange, 
         )}
       </div>
 
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mr-1">View</span>
+        {(['area', 'line', 'candles'] as ChartType[]).map(type => (
+          <button key={type} onClick={() => setChartType(type)}
+            className={clsx('rounded-full border px-3 py-1 text-xs font-semibold capitalize transition-colors', chartType === type ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300')}>
+            {type === 'candles' ? 'Candles' : type}
+          </button>
+        ))}
+      </div>
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_minmax(280px,0.95fr)]">
         <div className="space-y-3">
           <div className="rounded-2xl border border-slate-200 bg-white/70 p-3">
@@ -295,7 +345,7 @@ export default function StockPriceChart({ data, loading = false, selectedRange, 
             ) : enriched.length === 0 ? (
               <div className="flex h-64 items-center justify-center text-sm text-slate-400">No live market data available.</div>
             ) : (
-              <ResponsiveContainer width="100%" height={240}>
+              chartType === 'candles' ? <CandlestickChart data={enriched} currency={currency} /> : <ResponsiveContainer width="100%" height={240}>
                 <ComposedChart data={enriched} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                   <defs>
                     <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
@@ -313,11 +363,28 @@ export default function StockPriceChart({ data, loading = false, selectedRange, 
                     <ReferenceLine y={quote.previous_close} stroke="#cbd5e1" strokeDasharray="4 4" />
                   )}
                   <Area type="monotone" dataKey="close" stroke={lineColor} strokeWidth={2}
-                    fill={'url(#' + fillId + ')'} dot={renderSignalDot} activeDot={{ r: 4 }} />
+                    fill={chartType === 'area' ? `url(#${fillId})` : 'transparent'} dot={renderSignalDot} activeDot={{ r: 4 }} />
                 </ComposedChart>
               </ResponsiveContainer>
             )}
           </div>
+
+          {enriched.length > 0 && (
+            <div className="rounded-2xl border border-slate-200 bg-white/70 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-600">Volume traded</span>
+                <span className="text-[10px] text-slate-400">Shares per interval</span>
+              </div>
+              <ResponsiveContainer width="100%" height={92}>
+                <BarChart data={enriched} margin={{ top: 2, right: 8, left: -16, bottom: 0 }}>
+                  <XAxis dataKey="timestamp" hide />
+                  <YAxis hide />
+                  <Tooltip content={<PriceTooltip currency={currency} />} />
+                  <Bar dataKey="volume" fill="#64748b" opacity={0.65} radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
 
           {enriched.length > 0 && (
             <>
