@@ -7,13 +7,16 @@ let transporter = null;
 
 function getTransporter() {
   if (!transporter && config.smtp.host) {
-    transporter = nodemailer.createTransport({
+    const transportOptions = {
       host: config.smtp.host,
       port: config.smtp.port,
       secure: config.smtp.port === 465,
-      auth: { user: config.smtp.username, pass: config.smtp.password },
-      tls: { rejectUnauthorized: false },
-    });
+      requireTLS: config.smtp.useTls && config.smtp.port !== 465,
+    };
+    if (config.smtp.username) {
+      transportOptions.auth = { user: config.smtp.username, pass: config.smtp.password };
+    }
+    transporter = nodemailer.createTransport(transportOptions);
   }
   return transporter;
 }
@@ -24,17 +27,18 @@ async function sendEmail({ to, subject, html, text }) {
     if (config.isDev) {
       console.log(`[EMAIL (dev)] To: ${to} | Subject: ${subject}`);
     }
-    return;
+    return { status: 'not_configured' };
   }
 
-  await t.sendMail({
+  const result = await t.sendMail({
     from: `"${config.smtp.fromName}" <${config.smtp.fromEmail}>`,
     to, subject, html, text,
   });
+  return { status: 'sent', messageId: result.messageId };
 }
 
 async function sendVerificationEmail(email, token) {
-  const url = `${config.frontendUrl}/verify-email?token=${token}`;
+  const url = `${config.frontendUrl}/#/verify-email?token=${encodeURIComponent(token)}`;
   await sendEmail({
     to: email,
     subject: 'Verify your ESG Engine email address',
@@ -50,7 +54,7 @@ async function sendVerificationEmail(email, token) {
 }
 
 async function sendPasswordResetEmail(email, token) {
-  const url = `${config.frontendUrl}/reset-password?token=${token}`;
+  const url = `${config.frontendUrl}/#/reset-password?token=${encodeURIComponent(token)}`;
   await sendEmail({
     to: email,
     subject: 'Reset your ESG Engine password',
@@ -66,7 +70,7 @@ async function sendPasswordResetEmail(email, token) {
 }
 
 async function sendAlertNotificationEmail(email, alert, companyName) {
-  await sendEmail({
+  return sendEmail({
     to: email,
     subject: `ESG Alert Triggered: ${alert.name}`,
     html: `
@@ -79,4 +83,14 @@ async function sendAlertNotificationEmail(email, alert, companyName) {
   });
 }
 
-module.exports = { sendEmail, sendVerificationEmail, sendPasswordResetEmail, sendAlertNotificationEmail };
+function shouldSendAlertEmail(user) {
+  if (!user?.email || !user.isActive) return false;
+  try {
+    const preferences = JSON.parse(user.notificationPreferencesJson || '{}');
+    return preferences.emailAlerts !== false && preferences.email_alerts !== false;
+  } catch {
+    return true;
+  }
+}
+
+module.exports = { sendEmail, sendVerificationEmail, sendPasswordResetEmail, sendAlertNotificationEmail, shouldSendAlertEmail };

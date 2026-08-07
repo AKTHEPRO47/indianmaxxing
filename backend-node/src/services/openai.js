@@ -51,7 +51,7 @@ async function generateSignals(companyName) {
 
 async function copilotQuery(company, query, signals, evidences, latestScore) {
   if (config.useMockLlm) {
-    return generateMockCopilotAnswer(company, query, latestScore);
+    return generateMockCopilotAnswer(company, query, signals, evidences, latestScore);
   }
 
   const context = buildContext(company, signals, evidences, latestScore);
@@ -62,9 +62,9 @@ async function copilotQuery(company, query, signals, evidences, latestScore) {
 
   try {
     const answer = await callOpenAI(messages, 600);
-    return answer || generateMockCopilotAnswer(company, query, latestScore);
+    return answer || generateMockCopilotAnswer(company, query, signals, evidences, latestScore);
   } catch {
-    return generateMockCopilotAnswer(company, query, latestScore);
+    return generateMockCopilotAnswer(company, query, signals, evidences, latestScore);
   }
 }
 
@@ -128,10 +128,55 @@ function buildContext(company, signals, evidences, latestScore) {
   return lines.join('\n');
 }
 
-function generateMockCopilotAnswer(company, query, latestScore) {
+function generateMockCopilotAnswer(company, query, signals = [], evidences = [], latestScore) {
+  const normalizedQuery = query.toLowerCase();
   const score = latestScore?.currentEsgScore?.toFixed(1) || 'N/A';
   const classification = latestScore?.classification || 'Watchlist';
-  return `Based on available data, ${company.name} currently has an ESG score of ${score} and is classified as "${classification}". ${query.toLowerCase().includes('risk') ? 'Key risks include potential greenwashing claims and governance concerns. ' : ''}${query.toLowerCase().includes('invest') ? `The current investor signal is "${latestScore?.investorSignal || 'Hold'}". ` : ''}This analysis is based on available signals and company disclosures. For comprehensive due diligence, consult primary ESG data providers.`;
+  const momentum = latestScore?.momentumScore;
+  const risk = latestScore?.controversyRisk;
+  const aiAdoption = latestScore?.aiAdoptionScore;
+  const category = normalizedQuery.match(/emission|carbon|climate|environment|scope/) ? 'environmental'
+    : normalizedQuery.match(/employee|worker|labor|labour|diversity|social|safety/) ? 'social'
+      : normalizedQuery.match(/board|governance|audit|privacy|cyber|regulat|compliance/) ? 'governance'
+        : normalizedQuery.match(/ai |artificial intelligence|automation|machine learning|digital/) ? 'ai_adoption'
+          : normalizedQuery.match(/controvers|risk|lawsuit|fine|greenwash|scandal/) ? 'controversy'
+            : null;
+  const relevantSignals = category ? signals.filter(signal => signal.category === category) : signals;
+  const relevantEvidence = category
+    ? evidences.filter(evidence => evidence.category === category)
+    : evidences;
+  const recentSignals = relevantSignals.slice(0, 3);
+  const recentEvidence = relevantEvidence.slice(0, 2);
+  const lines = [
+    `${company.name} is currently scored ${score}/100 and classified as "${classification}".`,
+  ];
+
+  if (normalizedQuery.match(/score|esg|why/)) {
+    lines.push(`The latest profile combines ESG signals and disclosures. Momentum is ${momentum == null ? 'not available' : `${momentum >= 0 ? '+' : ''}${momentum.toFixed(1)}`}, while controversy risk is ${risk == null ? 'not available' : `${risk.toFixed(0)}/100`}.`);
+  }
+  if (normalizedQuery.match(/invest|buy|sell|hold|signal/)) {
+    lines.push(`The current investor signal is "${latestScore?.investorSignal || 'Hold'}". Treat it as a screening input alongside valuation and your own risk constraints.`);
+  }
+  if (normalizedQuery.match(/momentum|trend|improv|deteriorat/)) {
+    lines.push(momentum == null ? 'No current momentum score is available.' : `ESG momentum is ${momentum >= 0 ? 'positive' : 'negative'} at ${momentum >= 0 ? '+' : ''}${momentum.toFixed(1)}, which indicates the direction of recent scored signals.`);
+  }
+  if (normalizedQuery.match(/ai |artificial intelligence|automation|machine learning|digital/)) {
+    lines.push(aiAdoption == null ? 'No AI-adoption score is available.' : `AI adoption is scored ${aiAdoption.toFixed(0)}/100 based on the stored AI and digital-transformation signals.`);
+  }
+  if (normalizedQuery.match(/controvers|risk|lawsuit|fine|greenwash|scandal/)) {
+    lines.push(risk == null ? 'No current controversy-risk score is available.' : `Controversy risk is ${risk.toFixed(0)}/100. Review the recent risk signals below for the underlying events rather than assuming a specific allegation.`);
+  }
+
+  if (recentSignals.length) {
+    lines.push(`Recent ${category ? category.replace('_', ' ') : 'company'} signals: ${recentSignals.map(signal => `${signal.title} (${signal.source || 'stored signal'})`).join('; ')}.`);
+  } else if (recentEvidence.length) {
+    lines.push(`Stored evidence relevant to this question: ${recentEvidence.map(evidence => evidence.evidenceText?.slice(0, 180) || evidence.sourceName || 'Company disclosure').join(' ')}`);
+  } else {
+    lines.push(`There are no stored ${category ? category.replace('_', ' ') : 'topic-specific'} items matching this question yet. Try a score, momentum, risk, AI, governance, workforce, emissions, or recent-news question.`);
+  }
+
+  lines.push('This basic-mode answer uses the current Tricard score and stored company signals; consult original filings and sources for investment decisions.');
+  return lines.join('\n\n');
 }
 
 function generateMockSummary(company, latestScore) {
@@ -185,4 +230,4 @@ function generateMockExtractions(text, companyName) {
   return extractions;
 }
 
-module.exports = { generateSignals, copilotQuery, generateEsgSummary, extractFromDocument };
+module.exports = { generateSignals, copilotQuery, generateEsgSummary, extractFromDocument, generateMockCopilotAnswer };

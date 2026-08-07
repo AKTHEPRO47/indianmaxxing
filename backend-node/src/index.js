@@ -18,6 +18,7 @@ const errorHandler = require('./middleware/errorHandler');
 const snakeCaseResponse = require('./middleware/snakeCase');
 const wsModule = require('./websocket');
 const { startScheduler } = require('./scheduler');
+const { startTelegramBot, stopTelegramBot } = require('./services/telegramBot');
 const { seed } = require('./seed/seed');
 
 // ── Routes ────────────────────────────────────────────────
@@ -31,6 +32,7 @@ const alertsRouter = require('./routes/alerts');
 const apiKeysRouter = require('./routes/apikeys');
 const adminRouter = require('./routes/admin');
 const marketRouter = require('./routes/market');
+const newsRouter = require('./routes/news');
 
 const app = express();
 const server = http.createServer(app);
@@ -88,6 +90,7 @@ app.use('/alerts', alertsRouter);
 app.use('/api-keys', apiKeysRouter);
 app.use('/admin', adminRouter);
 app.use('/market', marketRouter);
+app.use('/news', newsRouter);
 
 // ── 404 handler ───────────────────────────────────────────
 
@@ -116,6 +119,7 @@ async function start() {
 
     // Start background scheduler
     startScheduler();
+    startTelegramBot();
 
     // Start HTTP + WebSocket server
     server.listen(config.port, () => {
@@ -134,6 +138,7 @@ async function start() {
 
 async function shutdown(signal) {
   console.log(`\n[${signal}] Shutting down gracefully...`);
+  stopTelegramBot();
   server.close(async () => {
     await prisma.$disconnect();
     console.log('[Shutdown] Clean exit.');

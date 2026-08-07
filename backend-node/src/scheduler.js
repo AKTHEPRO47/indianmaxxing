@@ -3,6 +3,7 @@
 const cron = require('node-cron');
 const prisma = require('./database');
 const ws = require('./websocket');
+const notificationDispatcher = require('./services/notificationDispatcher');
 
 /**
  * Scheduled jobs — runs market open notifications and live price checks.
@@ -29,6 +30,13 @@ function startScheduler() {
     } catch {}
   });
 
+  // Every 15 minutes: ingest a bounded set of fresh market headlines.
+  cron.schedule('*/15 * * * *', async () => {
+    try {
+      await require('./services/newsIngestion').refreshNews();
+    } catch {}
+  });
+
   // Daily at 08:00 UTC: auto-score companies that haven't been scored in 24h
   cron.schedule('0 8 * * *', async () => {
     try {
@@ -51,7 +59,7 @@ async function checkMarketOpen() {
       const prefs = safeJson(user.notificationPreferencesJson);
       if (prefs.marketOpen === false) continue;
 
-      await prisma.notification.create({
+      const notification = await prisma.notification.create({
         data: {
           userId: user.id,
           triggerType: 'market_open',
@@ -62,7 +70,14 @@ async function checkMarketOpen() {
         },
       });
 
-      ws.pushToUser(user.id, { title: 'Market Open', body: 'US markets are now open.' });
+      const delivery = await notificationDispatcher.dispatchInAppNotification({
+        user,
+        title: notification.title,
+        body: notification.body,
+        triggerType: notification.triggerType,
+      });
+      await prisma.notification.update({ where: { id: notification.id }, data: { metadataJson: JSON.stringify({ delivery }) } });
+      ws.pushToUser(user.id, { id: notification.id, title: notification.title, body: notification.body, emailStatus: delivery.email?.status });
     }
   }
 }

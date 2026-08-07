@@ -5,6 +5,8 @@ const momentumAgent = require('../agents/momentumScoring');
 const controversyAgent = require('../agents/controversyRisk');
 const aiAdoptionAgent = require('../agents/aiAdoption');
 const greenwashingAgent = require('../agents/greenwashingDetector');
+const notificationDispatcher = require('./notificationDispatcher');
+const ws = require('../websocket');
 
 const PILLAR_WEIGHTS = { environmental: 0.40, social: 0.30, governance: 0.30 };
 const CONTROVERSY_RISK_ALERT_THRESHOLD = 75.0;
@@ -118,7 +120,9 @@ async function calculateScores(companyId) {
 async function evaluateAlerts(companyId, snapshot) {
   const alerts = await prisma.alertRule.findMany({
     where: { isActive: true, OR: [{ companyId }, { companyId: null }] },
+    include: { user: true },
   });
+  const company = await prisma.company.findUnique({ where: { id: companyId }, select: { name: true } });
 
   const fieldMap = {
     esg_drop: snapshot.currentEsgScore,
@@ -138,7 +142,7 @@ async function evaluateAlerts(companyId, snapshot) {
     if (alert.operator === 'eq' && value === alert.threshold) triggered = true;
 
     if (triggered) {
-      await prisma.notification.create({
+      const notification = await prisma.notification.create({
         data: {
           userId: alert.userId,
           companyId,
@@ -146,9 +150,26 @@ async function evaluateAlerts(companyId, snapshot) {
           channel: 'IN_APP',
           title: `Alert: ${alert.name}`,
           body: `${alert.triggerType} triggered — value ${value} ${alert.operator} ${alert.threshold}`,
+          metadataJson: JSON.stringify({ email: { status: 'pending' } }),
           deliveredAt: new Date(),
         },
       });
+
+      const delivery = await notificationDispatcher.dispatchAlert({
+        user: alert.user,
+        alert,
+        companyName: company?.name,
+        title: notification.title,
+        body: notification.body,
+        forceBroadcast: true,
+      }).catch(error => ({ email: { status: 'failed', error: error.message } }));
+      const email = delivery.email ?? { status: 'disabled' };
+
+      await prisma.notification.update({
+        where: { id: notification.id },
+        data: { metadataJson: JSON.stringify({ delivery }) },
+      });
+      ws.pushToUser(alert.userId, { id: notification.id, title: notification.title, body: notification.body, emailStatus: email.status });
 
       await prisma.alertRule.update({ where: { id: alert.id }, data: { lastTriggered: new Date() } });
     }

@@ -3,6 +3,7 @@
 const express = require('express');
 const prisma = require('../database');
 const { requireAdmin } = require('../middleware/auth');
+const notificationDispatcher = require('../services/notificationDispatcher');
 
 const router = express.Router();
 
@@ -132,7 +133,7 @@ router.post('/broadcast', async (req, res, next) => {
     const { title, body, triggerType = 'admin_broadcast', deepLink } = req.body;
     if (!title || !body) return res.status(400).json({ detail: 'Title and body are required.' });
 
-    const users = await prisma.user.findMany({ where: { isActive: true }, select: { id: true } });
+    const users = await prisma.user.findMany({ where: { isActive: true } });
 
     await prisma.notification.createMany({
       data: users.map(u => ({
@@ -141,6 +142,13 @@ router.post('/broadcast', async (req, res, next) => {
         deliveredAt: new Date(),
       })),
     });
+
+    await Promise.allSettled(users.map(user => notificationDispatcher.dispatchInAppNotification({
+      user,
+      title,
+      body,
+      triggerType,
+    })));
 
     res.json({ message: `Broadcast sent to ${users.length} users.` });
   } catch (err) {

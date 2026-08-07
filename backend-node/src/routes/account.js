@@ -4,6 +4,9 @@ const express = require('express');
 const prisma = require('../database');
 const { requireAuth } = require('../middleware/auth');
 const activityLogger = require('../utils/activityLogger');
+const config = require('../config');
+const ws = require('../websocket');
+const notificationDispatcher = require('../services/notificationDispatcher');
 
 const router = express.Router();
 
@@ -29,6 +32,7 @@ function userToOut(user) {
     uiPreferences: safeJson(user.uiPreferencesJson),
     notificationPreferences: {
       enabled: true,
+      emailAlerts: true,
       livePriceAlerts: true,
       priceMoveThresholdPct: 2.5,
       marketOpenCountries: ['Singapore', 'United States', 'Hong Kong'],
@@ -49,15 +53,39 @@ router.get('/profile', requireAuth, (req, res) => {
   res.json(userToOut(req.user));
 });
 
+router.get('/notification-channels', requireAuth, (req, res) => {
+  res.json({
+    telegram: {
+      configured: Boolean(config.telegram.botToken && config.telegram.botUsername),
+      botUsername: config.telegram.botUsername || null,
+    },
+    discord: { configured: true },
+    email: { configured: Boolean(config.smtp.host) },
+  });
+});
+
 // ── PUT /account/profile ──────────────────────────────────
 
 router.put('/profile', requireAuth, async (req, res, next) => {
   try {
-    const { fullName, investingStyle, email, bio, timezone, language } = req.body;
+    const {
+      fullName,
+      full_name: fullNameSnake,
+      investingStyle,
+      investing_style: investingStyleSnake,
+      email,
+      bio,
+      timezone,
+      language,
+    } = req.body;
     const updates = {};
 
-    if (fullName !== undefined) updates.fullName = fullName?.trim() || null;
-    if (investingStyle !== undefined) updates.investingStyle = investingStyle;
+    if (fullName !== undefined || fullNameSnake !== undefined) {
+      updates.fullName = (fullName ?? fullNameSnake)?.trim() || null;
+    }
+    if (investingStyle !== undefined || investingStyleSnake !== undefined) {
+      updates.investingStyle = investingStyle ?? investingStyleSnake;
+    }
     if (bio !== undefined) updates.bio = bio?.trim() || null;
     if (timezone !== undefined) updates.timezone = timezone;
     if (language !== undefined) updates.language = language;
@@ -84,15 +112,28 @@ router.put('/profile', requireAuth, async (req, res, next) => {
 
 router.put('/preferences', requireAuth, async (req, res, next) => {
   try {
-    const { themeMode, accentColor, dashboardLayout, cardDensity, uiPreferences, notificationPreferences } = req.body;
+    const {
+      themeMode,
+      theme_mode: themeModeSnake,
+      accentColor,
+      accent_color: accentColorSnake,
+      dashboardLayout,
+      dashboard_layout: dashboardLayoutSnake,
+      cardDensity,
+      card_density: cardDensitySnake,
+      uiPreferences,
+      ui_preferences: uiPreferencesSnake,
+      notificationPreferences,
+      notification_preferences: notificationPreferencesSnake,
+    } = req.body;
     const updates = {};
 
-    if (themeMode !== undefined) updates.themeMode = themeMode;
-    if (accentColor !== undefined) updates.accentColor = accentColor;
-    if (dashboardLayout !== undefined) updates.dashboardLayout = dashboardLayout;
-    if (cardDensity !== undefined) updates.cardDensity = cardDensity;
-    if (uiPreferences !== undefined) updates.uiPreferencesJson = JSON.stringify(uiPreferences);
-    if (notificationPreferences !== undefined) updates.notificationPreferencesJson = JSON.stringify(notificationPreferences);
+    if (themeMode ?? themeModeSnake) updates.themeMode = themeMode ?? themeModeSnake;
+    if (accentColor ?? accentColorSnake) updates.accentColor = accentColor ?? accentColorSnake;
+    if (dashboardLayout ?? dashboardLayoutSnake) updates.dashboardLayout = dashboardLayout ?? dashboardLayoutSnake;
+    if (cardDensity ?? cardDensitySnake) updates.cardDensity = cardDensity ?? cardDensitySnake;
+    if (uiPreferences ?? uiPreferencesSnake) updates.uiPreferencesJson = JSON.stringify(uiPreferences ?? uiPreferencesSnake);
+    if (notificationPreferences ?? notificationPreferencesSnake) updates.notificationPreferencesJson = JSON.stringify(notificationPreferences ?? notificationPreferencesSnake);
 
     const updated = await prisma.user.update({ where: { id: req.user.id }, data: updates });
     res.json(userToOut(updated));
@@ -106,7 +147,6 @@ router.put('/preferences', requireAuth, async (req, res, next) => {
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const config = require('../config');
 
 const avatarStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -222,12 +262,37 @@ router.post('/watchlist/:companyId', requireAuth, async (req, res, next) => {
     const company = await prisma.company.findUnique({ where: { id: companyId } });
     if (!company) return res.status(404).json({ detail: 'Company not found.' });
 
-    await prisma.userWatchlistItem.upsert({
+    const existing = await prisma.userWatchlistItem.findUnique({
       where: { userId_companyId: { userId: req.user.id, companyId } },
-      update: {},
-      create: { userId: req.user.id, companyId },
     });
-    res.json({ message: 'Added to watchlist.' });
+    if (existing) return res.json({ message: 'Already in watchlist.', created: false });
+
+    await prisma.userWatchlistItem.create({ data: { userId: req.user.id, companyId } });
+    const notification = await prisma.notification.create({
+      data: {
+        userId: req.user.id,
+        companyId,
+        triggerType: 'watchlist_added',
+        channel: 'IN_APP',
+        title: 'Added to watchlist',
+        body: `${company.name}${company.ticker ? ` (${company.ticker})` : ''} is now being tracked.`,
+        deepLink: `/#/companies/${companyId}`,
+        deliveredAt: new Date(),
+      },
+    });
+    const delivery = await notificationDispatcher.dispatchInAppNotification({
+      user: req.user,
+      title: notification.title,
+      body: notification.body,
+      triggerType: notification.triggerType,
+      companyName: company.name,
+    });
+    await prisma.notification.update({
+      where: { id: notification.id },
+      data: { metadataJson: JSON.stringify({ delivery }) },
+    });
+    ws.pushToUser(req.user.id, { notification });
+    res.json({ message: 'Added to watchlist.', created: true, notification, delivery });
   } catch (err) {
     next(err);
   }

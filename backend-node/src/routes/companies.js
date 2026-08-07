@@ -133,6 +133,9 @@ router.get('/', async (req, res, next) => {
       where.OR = [
         { name: { contains: q } },
         { ticker: { contains: q.toUpperCase() } },
+        { industry: { contains: q } },
+        { exchange: { contains: q } },
+        { country: { contains: q } },
       ];
     }
     if (exchange) where.exchange = { equals: exchange, mode: 'insensitive' };

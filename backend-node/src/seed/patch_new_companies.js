@@ -1,8 +1,8 @@
 'use strict';
 /**
  * patch_new_companies.js
- * Adds WDC, SPY, QQQ, VOO, GLD, VTI, DIA, TLT, SSNLF, HXSCL, ON
- * (IDs 72-82) and creates score snapshots + dividends for each.
+ * Adds WDC, SNDK, SPY, QQQ, VOO, GLD, VTI, DIA, TLT, SSNLF, HXSCL, ON
+ * (IDs 72-83) and creates score snapshots + dividends for each.
  * Run: node src/seed/patch_new_companies.js
  */
 
@@ -10,7 +10,8 @@ const prisma = require('../database');
 const { calculateScores } = require('../services/scoring');
 
 const NEW_COMPANIES = [
-  { id: 72, ticker: 'WDC',   name: 'Western Digital Corporation (SanDisk)', exchange: 'NASDAQ',   industry: 'Storage / Semiconductors',       country: 'United States', marketCap: '$20B',  logoUrl: 'https://www.google.com/s2/favicons?domain=westerndigital.com&sz=128' },
+  { id: 72, ticker: 'WDC',   name: 'Western Digital Corporation',           exchange: 'NASDAQ',   industry: 'Storage / Semiconductors',       country: 'United States', marketCap: '$20B',  logoUrl: 'https://www.google.com/s2/favicons?domain=westerndigital.com&sz=128' },
+  { id: 83, ticker: 'SNDK',  name: 'SanDisk Corporation',                   exchange: 'NASDAQ',   industry: 'Storage / NAND Flash',           country: 'United States', marketCap: '$12B',  logoUrl: 'https://www.google.com/s2/favicons?domain=sandisk.com&sz=128' },
   { id: 73, ticker: 'SPY',   name: 'SPDR S&P 500 ETF Trust',                exchange: 'NYSEARCA', industry: 'ETF / Index',                    country: 'United States', marketCap: '$570B', logoUrl: 'https://www.google.com/s2/favicons?domain=ssga.com&sz=128' },
   { id: 74, ticker: 'QQQ',   name: 'Invesco QQQ Trust (NASDAQ-100)',         exchange: 'NASDAQ',   industry: 'ETF / Technology',               country: 'United States', marketCap: '$340B', logoUrl: 'https://www.google.com/s2/favicons?domain=invesco.com&sz=128' },
   { id: 75, ticker: 'VOO',   name: 'Vanguard S&P 500 ETF',                  exchange: 'NYSEARCA', industry: 'ETF / Index',                    country: 'United States', marketCap: '$550B', logoUrl: 'https://www.google.com/s2/favicons?domain=vanguard.com&sz=128' },
@@ -26,6 +27,7 @@ const NEW_COMPANIES = [
 // ESG & signal characteristics per company
 const ESG_PROFILES = {
   WDC:   { esg: 55, env: 52, soc: 54, gov: 59, mom: 8,  ai: 35, controversy: 28, classification: 'Watchlist',      signal: 'Hold' },
+  SNDK:  { esg: 57, env: 55, soc: 56, gov: 60, mom: 14, ai: 42, controversy: 24, classification: 'Hidden Winner',  signal: 'Buy / Watchlist' },
   SPY:   { esg: 63, env: 62, soc: 65, gov: 66, mom: 12, ai: 45, controversy: 14, classification: 'Hidden Winner',  signal: 'Buy / Watchlist' },
   QQQ:   { esg: 66, env: 65, soc: 66, gov: 67, mom: 18, ai: 70, controversy: 13, classification: 'Future Leader',  signal: 'Buy' },
   VOO:   { esg: 63, env: 61, soc: 64, gov: 64, mom: 11, ai: 44, controversy: 14, classification: 'Hidden Winner',  signal: 'Buy / Watchlist' },
@@ -41,6 +43,7 @@ const ESG_PROFILES = {
 // Dividend data for new companies
 const DIVIDEND_DATA = {
   WDC:   { annualDividend: null, dividendYield: null,  lastDividendDate: null,         payoutFrequency: 'None' },
+  SNDK:  { annualDividend: null, dividendYield: null,  lastDividendDate: null,         payoutFrequency: 'None' },
   SPY:   { annualDividend: 6.52, dividendYield: 1.22,  lastDividendDate: '2025-12-20', payoutFrequency: 'Quarterly' },
   QQQ:   { annualDividend: 1.90, dividendYield: 0.56,  lastDividendDate: '2025-12-23', payoutFrequency: 'Quarterly' },
   VOO:   { annualDividend: 6.48, dividendYield: 1.21,  lastDividendDate: '2025-12-23', payoutFrequency: 'Quarterly' },
@@ -59,6 +62,14 @@ async function main() {
     try {
       const existing = await prisma.company.findUnique({ where: { ticker: co.ticker } });
       if (existing) {
+        if (co.ticker === 'WDC' && existing.name !== co.name) {
+          await prisma.company.update({
+            where: { ticker: co.ticker },
+            data: { name: co.name, industry: co.industry, logoUrl: co.logoUrl },
+          });
+          console.log(`  [UPDATE] ${co.ticker} — ${co.name}`);
+          continue;
+        }
         console.log(`  [SKIP] ${co.ticker} already exists (id=${existing.id})`);
         continue;
       }

@@ -1,6 +1,6 @@
 'use strict';
 
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '..', '.env') });
 
 const config = {
   port: parseInt(process.env.PORT || '8000', 10),
@@ -31,6 +31,11 @@ const config = {
     useTls: process.env.SMTP_USE_TLS !== 'false',
     fromEmail: process.env.SMTP_FROM_EMAIL || 'noreply@tricard.local',
     fromName: process.env.SMTP_FROM_NAME || 'Tricard Alerts',
+  },
+
+  telegram: {
+    botToken: process.env.TELEGRAM_BOT_TOKEN || '',
+    botUsername: process.env.TELEGRAM_BOT_USERNAME || '',
   },
 
   // File uploads

@@ -3,6 +3,8 @@
 const express = require('express');
 const prisma = require('../database');
 const { requireAuth } = require('../middleware/auth');
+const notificationDispatcher = require('../services/notificationDispatcher');
+const ws = require('../websocket');
 
 const router = express.Router();
 
@@ -107,8 +109,7 @@ router.post('/test/:id', requireAuth, async (req, res, next) => {
     });
     if (!alert) return res.status(404).json({ detail: 'Alert not found.' });
 
-    // Create a test notification
-    await prisma.notification.create({
+    const notification = await prisma.notification.create({
       data: {
         userId: req.user.id,
         companyId: alert.companyId || null,
@@ -116,10 +117,24 @@ router.post('/test/:id', requireAuth, async (req, res, next) => {
         channel: 'IN_APP',
         title: `[TEST] Alert triggered: ${alert.name}`,
         body: `This is a test notification for alert "${alert.name}" (${alert.triggerType}).`,
+        metadataJson: JSON.stringify({ email: { status: 'pending' } }),
+        deliveredAt: new Date(),
       },
     });
 
-    res.json({ message: 'Test notification sent.' });
+    const delivery = await notificationDispatcher.dispatchAlert({
+      user: req.user,
+      alert,
+      companyName: alert.company?.name,
+      title: notification.title,
+      body: notification.body,
+      forceBroadcast: true,
+    }).catch(error => ({ email: { status: 'failed', error: error.message } }));
+    const email = delivery.email ?? { status: 'disabled' };
+
+    await prisma.notification.update({ where: { id: notification.id }, data: { metadataJson: JSON.stringify({ delivery }) } });
+    ws.pushToUser(req.user.id, { id: notification.id, title: notification.title, body: notification.body, emailStatus: email.status });
+    res.json({ message: 'Test notification sent.', delivery });
   } catch (err) {
     next(err);
   }
