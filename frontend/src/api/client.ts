@@ -6,7 +6,7 @@ import type {
   AuthResponse, UserProfile, UserPreferences, AccountExportBundle, NotificationItem, UpdatePreferencesPayload, CompanyQuantAnalytics, DividendSummary, NewsSignal,
 } from '../types'
 
-const BASE = '/api'
+const BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
 export const http = axios.create({
   baseURL: BASE,
   headers: { 'Content-Type': 'application/json' },
@@ -17,7 +17,7 @@ export const http = axios.create({
 const isHostedFallbackOnly = () => {
   if (typeof window === 'undefined') return false
   const host = window.location.hostname
-  return host !== 'localhost' && host !== '127.0.0.1'
+  return !import.meta.env.VITE_API_URL && host !== 'localhost' && host !== '127.0.0.1'
 }
 
 const nowIso = () => new Date().toISOString()

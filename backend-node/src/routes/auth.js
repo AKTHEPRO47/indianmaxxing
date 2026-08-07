@@ -64,8 +64,8 @@ async function issueSession(user, res, req) {
 
   res.cookie(SESSION_COOKIE, rawToken, {
     httpOnly: true,
-    secure: config.nodeEnv === 'production',
-    sameSite: 'lax',
+    secure: config.cookieSecure,
+    sameSite: config.cookieSameSite,
     maxAge: SESSION_MS,
     path: '/',
   });

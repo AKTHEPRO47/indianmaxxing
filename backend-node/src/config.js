@@ -2,6 +2,9 @@
 
 require('dotenv').config({ path: require('path').resolve(__dirname, '..', '.env') });
 
+const cookieSameSiteValue = (process.env.COOKIE_SAME_SITE || 'lax').toLowerCase();
+const cookieSameSite = ['lax', 'none', 'strict'].includes(cookieSameSiteValue) ? cookieSameSiteValue : 'lax';
+
 const config = {
   port: parseInt(process.env.PORT || '8000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -10,6 +13,8 @@ const config = {
   // Auth
   secretKey: process.env.SECRET_KEY || 'dev-secret-key',
   sessionDays: parseInt(process.env.SESSION_DAYS || '30', 10),
+  cookieSameSite,
+  cookieSecure: process.env.COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production' || cookieSameSite === 'none',
 
   // OpenAI
   openaiApiKey: process.env.OPENAI_API_KEY || '',
