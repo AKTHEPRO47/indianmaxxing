@@ -1,0 +1,21 @@
+{
+  "name": "sgx-notification-system",
+  "version": "0.1.0",
+  "description": "UC-008 notification system: WhatsApp, Telegram and Email delivery with routing, retry/fallback, cooldown and batching.",
+  "main": "src/index.js",
+  "scripts": {
+    "demo": "node demo.js",
+    "test": "node ../tests/matthew/notification.test.js",
+    "auto": "node auto.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "nodemailer": "^6.9.14",
+    "pg": "^8.12.0",
+    "yahoo-finance2": "^3.5.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
