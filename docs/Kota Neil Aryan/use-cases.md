@@ -9,6 +9,21 @@
 | Administrator | Maintain company data and operate the platform | Admin API, company import/export, user management |
 | API consumer | Read permitted data programmatically | API key endpoints and `X-API-Key` authentication |
 
+## Required Use Case Coverage
+
+| UC | Module | Implementation | Entry point | Status |
+|---|---|---|---|---|
+| UC-001 | Chatbot | Evidence-grounded company Q&A using reports, signals, and latest score | Company detail > AI Copilot; `POST /companies/:id/copilot` | Implemented |
+| UC-002 | Chatbot | Side-by-side ESG, momentum, AI, risk, confidence, and pillar comparison | Company detail > Peer Compare | Implemented |
+| UC-003 | Chatbot | Hidden-winner, future-leader, value-trap, and risk classifications identify potential opportunities | Dashboard, ESG Matrix, company search | Implemented |
+| UC-004 | Chatbot | Conviction-style investor signal combines ESG score, momentum, AI adoption, controversy risk, and confidence | Company detail, Watchlist, Dashboard | Implemented |
+| UC-005 | Screener | Filters companies by exchange, country, industry, search text, ESG score, and momentum classification | Dashboard watchlist table and company search | Implemented |
+| UC-006 | Watchlist | Save/remove user companies and favorites using authenticated account endpoints | Dashboard and Company detail | Implemented |
+| UC-010 | Watchlist | Dedicated investor workspace with stock icons, quotes, ESG/momentum/risk analytics, filters, sorting, and direct company analysis | Sidebar > Watchlist | Implemented |
+| UC-007 | News | Dedicated News & Alerts page with persisted signal feed, category filters, manual refresh, and 15-minute RSS ingestion | Sidebar > News & Alerts; `GET /news` | Implemented |
+| UC-008 | Charts | Area, line, candlestick, volume, RSI, and MACD views over live OHLCV market data | Company detail > Stock price chart | Implemented |
+| UC-009 | System | Incoming headlines are classified, deduplicated, persisted, rescored, and can trigger user alert rules | Scheduled Node job and scoring service | Implemented |
+
 ## Core flows
 
 ### Review ESG momentum
@@ -40,6 +55,13 @@
 2. The portfolio route calculates an ESG-weighted score from holdings and current company scores.
 3. The investor creates an alert rule for a threshold or risk condition.
 4. The scheduler evaluates enabled rules and delivers in-app or email notifications.
+
+### Analyze a personal watchlist
+1. An authenticated investor opens the Watchlist page from the sidebar.
+2. The page reads saved companies and combines one-day market quotes with each company's latest ESG snapshot.
+3. Aggregate ESG, momentum, price-move, and controversy-risk indicators update from the displayed companies.
+4. The investor filters or sorts the list, opens detailed research, or removes a company from tracking.
+5. A newly added company is mirrored to the in-app inbox, configured email address, and linked Telegram chat.
 
 ## Edge cases and expected behavior
 

@@ -62,6 +62,15 @@ curl -X POST http://localhost:8000/portfolios -b "tricard_session=<token>" -H "C
 | GET | `/market/batch-quotes` | `?tickers=AAPL,MSFT,TSLA` | `200` quotes by ticker | `500` |
 | GET | `/market/movers` | `GET /market/movers` | `200` gainers/losers | `500` |
 
+## News and alerts
+
+| Method | Endpoint | Example request | Success | Errors |
+|---|---|---|---|---|
+| GET | `/news` | `?limit=50&category=controversy` | `200` persisted headline signals with company metadata | `400`, `500` |
+| POST | `/news/refresh` | authenticated request | `200` bounded RSS refresh summary | `401`, `429`, `500` |
+
+The Node scheduler performs a bounded Yahoo Finance RSS ingestion every 15 minutes. New headlines are classified, deduplicated by company/title/source, stored as signals, and trigger score recalculation for the affected company.
+
 ## Portfolios, alerts, and API keys
 
 | Method | Endpoint | Example request | Success | Errors |
@@ -88,7 +97,7 @@ curl -X POST http://localhost:8000/portfolios -b "tricard_session=<token>" -H "C
 | POST | `/account/notifications/:id/read` | `POST /account/notifications/1/read` | `200` notification | `401`, `404`, `500` |
 | POST | `/account/notifications/read-all` | `POST /account/notifications/read-all` | `200` count | `401`, `500` |
 | DELETE | `/account/notifications/:id` | `DELETE /account/notifications/1` | `200` message | `401`, `404`, `500` |
-| GET/POST/DELETE | `/account/watchlist[/:companyId]` | `POST /account/watchlist/1` | `200` list/message | `401`, `404`, `409`, `500` |
+| GET/POST/DELETE | `/account/watchlist[/:companyId]` | `POST /account/watchlist/1` | `200` list/message and delivery status; new additions notify in-app, email, and Telegram | `401`, `404`, `409`, `500` |
 | GET/POST/DELETE | `/account/favorites[/:companyId]` | `POST /account/favorites/1` | `200` list/message | `401`, `404`, `409`, `500` |
 | GET | `/account/tags` | `GET /account/tags` | `200` tags | `401`, `500` |
 | POST/DELETE | `/account/tags/:companyId` | `POST {"tag":"Watch"}` | `200` tags/message | `400`, `401`, `404`, `500` |

@@ -68,4 +68,6 @@ No public deployment URL is configured in this repository. The verified local UR
 - [Aryan use cases](docs/Kota%20Neil%20Aryan/use-cases.md)
 - [Aryan API documentation](docs/Kota%20Neil%20Aryan/api-documentation.md)
 - [Aryan database schema](docs/Kota%20Neil%20Aryan/database-schema.md)
+- [Aryan watchlist system](docs/Kota%20Neil%20Aryan/system.md)
+- [Aryan AI and analytics note](docs/Kota%20Neil%20Aryan/my-ai.md)
 - [Neelaansh authentication documentation](docs/Neelaansh/README.md)
