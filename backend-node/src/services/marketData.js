@@ -18,12 +18,19 @@ function cleanNumber(value) {
   return isNaN(n) || !isFinite(n) ? null : n;
 }
 
+function normalizeYahooTicker(symbol) {
+  const ticker = symbol.toUpperCase();
+  return /\.(SI|AX|TO|L|HK|NS|BO|DE|PA|AS|SW|MI|MC|BR|SA|T|KS|KQ|SS|SZ)$/.test(ticker)
+    ? ticker
+    : ticker.replace('.', '-');
+}
+
 /**
  * Fetch OHLCV stock data from Yahoo Finance v8 API.
  */
 async function fetchStockData(symbol, rangeKey = '1mo') {
   const config = STOCK_RANGE_MAP[rangeKey] || STOCK_RANGE_MAP['1mo'];
-  const ticker = symbol.replace('.', '-').toUpperCase();
+  const ticker = normalizeYahooTicker(symbol);
 
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`;
 
@@ -76,7 +83,7 @@ async function fetchStockData(symbol, rangeKey = '1mo') {
  * Fetch financial profile (PE, market cap, etc.) from Yahoo Finance.
  */
 async function fetchFinancialProfile(symbol) {
-  const ticker = symbol.replace('.', '-').toUpperCase();
+  const ticker = normalizeYahooTicker(symbol);
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`;
 
   try {
