@@ -55,6 +55,7 @@ TICKER_DOMAINS = {
     'SIEGY': 'siemens.com',
     'SONY': 'sony.com',
     'SPCX': 'simplify.us',
+    'SPACEX': 'spacex.com',
     'STLA': 'stellantis.com',
     'TXN': 'ti.com',
     'TMC': 'metals.co',

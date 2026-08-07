@@ -5,6 +5,7 @@ from sqlalchemy import desc
 from app.database import get_db
 from app.models import Company, ScoreSnapshot
 from app.schemas import MatrixResponse, MatrixEntry, CompanyOut
+from app.services.market_data import fetch_financial_profile
 
 router = APIRouter(prefix="/matrix", tags=["matrix"])
 
@@ -32,8 +33,10 @@ def get_matrix(db: Session = Depends(get_db)):
             .first()
         )
         if latest:
+            financial_profile = fetch_financial_profile(company.ticker) if company.ticker else {}
+            company_out = CompanyOut.model_validate(company).model_copy(update=financial_profile)
             entries.append(MatrixEntry(
-                company=CompanyOut.model_validate(company),
+                company=company_out,
                 current_esg_score=latest.current_esg_score,
                 momentum_score=latest.momentum_score,
                 classification=latest.classification,

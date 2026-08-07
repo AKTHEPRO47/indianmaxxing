@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from functools import lru_cache
 import math
 from typing import Any, Dict, List
 
@@ -47,8 +48,48 @@ def _format_timestamp(value: Any) -> str:
     return str(value)
 
 
+def _format_epoch_seconds(value: Any) -> str | None:
+    number = _clean_number(value)
+    if number is None:
+        return None
+    try:
+        return datetime.fromtimestamp(number).isoformat()
+    except (OSError, OverflowError, ValueError):
+        return None
+
+
 def _ticker_for_symbol(symbol: str) -> str:
     return symbol.replace(".", "-").upper()
+
+
+@lru_cache(maxsize=256)
+def fetch_financial_profile(symbol: str) -> Dict[str, Any]:
+    ticker_symbol = _ticker_for_symbol(symbol)
+    ticker = yf.Ticker(ticker_symbol)
+    try:
+        info = ticker.get_info() or {}
+    except Exception:
+        info = {}
+
+    market_cap = _clean_number(info.get("marketCap"))
+    if market_cap is None:
+        try:
+            market_cap = _clean_number(ticker.fast_info.get("marketCap"))
+        except Exception:
+            market_cap = None
+
+    dividend_yield = _clean_number(info.get("dividendYield"))
+    if dividend_yield is not None:
+        dividend_yield = dividend_yield * 100 if dividend_yield <= 1 else dividend_yield
+
+    return {
+        "market_cap_value": market_cap,
+        "pe_ratio": _clean_number(info.get("trailingPE")),
+        "forward_pe": _clean_number(info.get("forwardPE")),
+        "price_to_book": _clean_number(info.get("priceToBook")),
+        "dividend_yield": dividend_yield,
+        "beta": _clean_number(info.get("beta")),
+    }
 
 
 def fetch_stock_data(symbol: str, range_key: str) -> Dict[str, Any]:
@@ -94,6 +135,20 @@ def fetch_stock_data(symbol: str, range_key: str) -> Dict[str, Any]:
 
     market_cap = _clean_number(fast_info.get("marketCap"))
     average_volume = _clean_number(fast_info.get("threeMonthAverageVolume")) or _clean_number(fast_info.get("tenDayAverageVolume"))
+    info = {}
+    try:
+        info = ticker.get_info() or {}
+    except Exception:
+        info = {}
+    premarket_price = _clean_number(info.get("preMarketPrice")) or _clean_number(fast_info.get("preMarketPrice"))
+    regular_market_price = _clean_number(info.get("regularMarketPrice")) or last_price
+    premarket_change = _clean_number(info.get("preMarketChange")) or _clean_number(fast_info.get("preMarketChange"))
+    premarket_change_percent = _clean_number(info.get("preMarketChangePercent")) or _clean_number(fast_info.get("preMarketChangePercent"))
+    if premarket_price is not None and premarket_change is None and regular_market_price not in (None, 0):
+        premarket_change = premarket_price - regular_market_price
+    if premarket_price is not None and premarket_change_percent is None and regular_market_price not in (None, 0):
+        premarket_change_percent = (premarket_change / regular_market_price) * 100 if premarket_change is not None else None
+    premarket_as_of = _format_epoch_seconds(info.get("preMarketTime")) or _clean_text(fast_info.get("preMarketTime"))
 
     return {
         "company_name": symbol,
@@ -120,6 +175,10 @@ def fetch_stock_data(symbol: str, range_key: str) -> Dict[str, Any]:
             "volume": _clean_number(fast_info.get("lastVolume")) or latest_point.get("volume"),
             "average_volume": average_volume,
             "market_cap": market_cap,
+            "premarket_price": premarket_price,
+            "premarket_change": premarket_change,
+            "premarket_change_percent": premarket_change_percent,
+            "premarket_as_of": premarket_as_of,
             "source": "yfinance",
             "as_of": latest_point.get("timestamp"),
         },
