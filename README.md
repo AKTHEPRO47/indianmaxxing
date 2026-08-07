@@ -60,7 +60,9 @@ The Node unit suite covers ESG signal classification, response casing, and authe
 
 ## Live URL
 
-No public deployment URL is configured in this repository. The verified local URLs are `http://127.0.0.1:5173` and `http://localhost:8000/health`.
+Demo: https://frontend-ebon-six-10.vercel.app/
+
+The verified local URLs are `http://127.0.0.1:5173` and `http://localhost:8000/health`.
 
 ## Documentation
 
