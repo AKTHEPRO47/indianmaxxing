@@ -26,6 +26,7 @@ npm --prefix backend-node install
 npm --prefix frontend install
 
 Copy-Item backend-node/.env.example backend-node/.env
+# Optional: Copy-Item frontend/.env.example frontend/.env.local
 # Set DATABASE_URL, SECRET_KEY, CORS_ORIGINS, and optional provider credentials.
 
 npm --prefix backend-node run prisma:push
@@ -49,6 +50,10 @@ npm --prefix frontend run build
 ```
 
 The Node unit suite covers ESG signal classification, response casing, and authentication security helpers.
+
+## Submission
+
+Use the placeholder-only environment templates in `backend-node/.env.example` and `frontend/.env.example`. See [SUBMISSION.md](SUBMISSION.md) for a submission-safe archive command that excludes local secrets and generated artifacts.
 
 ## Deployment
 
