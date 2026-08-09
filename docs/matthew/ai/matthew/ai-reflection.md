@@ -1,0 +1,3 @@
+# AI Reflection: Matthew
+
+AI was useful for structuring notification scenarios and failure cases that are easy to overlook, especially token expiry, webhook validation, retries, cooldowns, and failover delivery. The final design was limited to behavior the application could support and document. AI output was reviewed against the notification implementation and tests; it was not treated as proof that an external channel had delivered a message. Secrets and endpoint credentials remain outside source control.

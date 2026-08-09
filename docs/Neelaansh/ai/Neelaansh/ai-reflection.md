@@ -1,0 +1,3 @@
+# AI Reflection: Neelaansh
+
+AI helped organize authentication requirements into endpoint documentation and security test cases. Its main value was coverage: ensuring that registration, login, reset, rate limiting, token storage, and protected routes were considered together. The final documentation uses the implemented HTTP-only session-cookie model, where only a SHA-256 session-token hash is stored. AI suggestions were not accepted without checking code and tests, and no credentials or raw tokens were placed in project documentation.
