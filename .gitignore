@@ -19,3 +19,5 @@ backend/uploads/
 test_small.pdf
 tsla-20251231-gen.pdf
 backend.log
+.vercel
+.env*
