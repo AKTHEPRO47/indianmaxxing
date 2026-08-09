@@ -321,6 +321,8 @@ export interface MatrixEntry {
   company: Company
   current_esg_score: number
   momentum_score: number
+  ai_adoption_score?: number
+  controversy_risk?: number
   classification: Classification
   investor_signal: InvestorSignal
 }

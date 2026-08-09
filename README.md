@@ -64,6 +64,10 @@ Demo: https://frontend-ebon-six-10.vercel.app/
 
 The verified local URLs are `http://127.0.0.1:5173` and `http://localhost:8000/health`.
 
+## Stock Screener
+
+The **Stock Screener** ranks the top three matching companies for a selected industry. Users can filter by market-cap range, dividend-yield profile, minimum ESG score, minimum momentum, and maximum controversy risk. Results are ranked from the current ESG, momentum, AI-adoption, and controversy data available through the Matrix API.
+
 ## Documentation
 
 - [Architecture](docs/architecture.md)

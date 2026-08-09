@@ -9,6 +9,7 @@ import {
   Sparkles,
   Newspaper,
   BookmarkCheck,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import CompanyLogo from './CompanyLogo'
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { to: '/portfolio-optimizer', label: 'Portfolio Optimizer', icon: <Sparkles className="h-4 w-4" />, badge: 'NEW' },
   { to: '/news', label: 'News & Alerts', icon: <Newspaper className="h-4 w-4" />, badge: 'LIVE' },
   { to: '/watchlist', label: 'Watchlist', icon: <BookmarkCheck className="h-4 w-4" /> },
+  { to: '/screener', label: 'Stock Screener', icon: <SlidersHorizontal className="h-4 w-4" /> },
   { to: '/dividends', label: 'Dividends', icon: <Coins className="h-4 w-4" /> },
   { to: '/upload', label: 'Upload Report', icon: <Upload className="h-4 w-4" /> },
   { to: '/account', label: 'Account', icon: <UserRound className="h-4 w-4" /> },
