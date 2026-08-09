@@ -39,7 +39,7 @@ export default function StockScreenerPage() {
   const [industry, setIndustry] = useState('ALL')
   const [size, setSize] = useState<MarketCapBand>('ALL')
   const [dividends, setDividends] = useState<DividendBand>('ALL')
-  const [minimumEsg, setMinimumEsg] = useState(55)
+  const [minimumEsg, setMinimumEsg] = useState(50)
   const [minimumMomentum, setMinimumMomentum] = useState(0)
   const [maximumRisk, setMaximumRisk] = useState(50)
 
@@ -66,7 +66,7 @@ export default function StockScreenerPage() {
     setIndustry('ALL')
     setSize('ALL')
     setDividends('ALL')
-    setMinimumEsg(55)
+    setMinimumEsg(50)
     setMinimumMomentum(0)
     setMaximumRisk(50)
   }
