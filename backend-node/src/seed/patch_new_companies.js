@@ -56,7 +56,7 @@ const DIVIDEND_DATA = {
   ON:    { annualDividend: null, dividendYield: null,  lastDividendDate: null,         payoutFrequency: 'None' },
 };
 
-async function main() {
+async function applyNewCompanies() {
   let added = 0;
   for (const co of NEW_COMPANIES) {
     try {
@@ -117,8 +117,13 @@ async function main() {
     }
   }
   console.log(`\n✅ Added ${added} new companies.`);
+  return added;
 }
 
-main()
-  .catch(console.error)
-  .finally(() => prisma.$disconnect());
+module.exports = { applyNewCompanies };
+
+if (require.main === module) {
+  applyNewCompanies()
+    .catch(console.error)
+    .finally(() => prisma.$disconnect());
+}

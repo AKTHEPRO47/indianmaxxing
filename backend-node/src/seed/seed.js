@@ -5,6 +5,7 @@ require('dotenv').config();
 const prisma = require('../database');
 const { calculateScores } = require('../services/scoring');
 const { hashPassword } = require('../utils/security');
+const { applyNewCompanies } = require('./patch_new_companies');
 
 // ── All 71 companies, IDs exactly match frontend COMPANY_CATALOG index+1 ────
 const CATALOG_COMPANIES = [
@@ -202,6 +203,7 @@ async function seed(force = false) {
 
   if (!force && existingCount >= 71) {
     console.log(`[Seed] Already seeded (${existingCount} companies). Skipping.`);
+    await applyNewCompanies();
     return;
   }
 
@@ -288,6 +290,7 @@ async function seed(force = false) {
     console.error('[Seed] Admin user:', err.message);
   }
 
+  await applyNewCompanies();
   console.log('[Seed] Complete!');
 }
 
