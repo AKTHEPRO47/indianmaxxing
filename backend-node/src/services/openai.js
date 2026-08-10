@@ -51,9 +51,7 @@ async function generateSignals(companyName) {
 
 async function copilotQuery(company, query, signals, evidences, latestScore) {
   if (config.useMockLlm) {
-    const error = new Error('Live AI research is unavailable because OpenAI is not configured.');
-    error.status = 503;
-    throw error;
+    return generateMockCopilotAnswer(company, query, signals, evidences, latestScore);
   }
 
   const context = buildContext(company, signals, evidences, latestScore);
@@ -62,12 +60,12 @@ async function copilotQuery(company, query, signals, evidences, latestScore) {
     { role: 'user', content: `Context:\n${context}\n\nQuestion: ${query}` },
   ];
 
-  const answer = await callOpenAI(messages, 600);
-  if (answer) return answer;
-
-  const error = new Error('Live AI research returned no response.');
-  error.status = 502;
-  throw error;
+  try {
+    const answer = await callOpenAI(messages, 600);
+    return answer || generateMockCopilotAnswer(company, query, signals, evidences, latestScore);
+  } catch {
+    return generateMockCopilotAnswer(company, query, signals, evidences, latestScore);
+  }
 }
 
 // ── ESG Executive Summary ─────────────────────────────────

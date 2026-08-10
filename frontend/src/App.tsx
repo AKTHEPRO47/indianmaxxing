@@ -15,7 +15,6 @@ import PortfolioOptimizerPage from './pages/PortfolioOptimizerPage'
 import NewsPage from './pages/NewsPage'
 import WatchlistPage from './pages/WatchlistPage'
 import StockScreenerPage from './pages/StockScreenerPage'
-import AITradeDeskPage from './pages/AITradeDeskPage'
 import ProtectedRoute from './components/ProtectedRoute'
 import { useEffect, useState } from 'react'
 import Sidebar from './components/Sidebar'
@@ -71,7 +70,6 @@ export default function App() {
           <Route path="/news" element={<NewsPage />} />
           <Route path="/watchlist" element={<WatchlistPage />} />
           <Route path="/screener" element={<StockScreenerPage />} />
-          <Route path="/ai-trade-desk" element={<AITradeDeskPage />} />
         </Route>
         <Route path="*" element={<PublicRedirect />} />
       </Routes>

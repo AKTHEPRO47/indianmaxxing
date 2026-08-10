@@ -58,9 +58,9 @@ Use the placeholder-only environment templates in `backend-node/.env.example` an
 ## Deployment
 
 1. Provision a Node.js 18+ service for `backend-node/` and persistent database/upload storage.
-2. Set `NODE_ENV=production`, a strong `SECRET_KEY`, production `DATABASE_URL`, `CORS_ORIGINS`, `FRONTEND_URL`, and optional Google/OpenAI/SMTP variables. For AI Trade Desk, set a real `OPENAI_API_KEY` and `USE_MOCK_LLM=false`.
+2. Set `NODE_ENV=production`, a strong `SECRET_KEY`, production `DATABASE_URL`, `CORS_ORIGINS`, `FRONTEND_URL`, and optional Google/OpenAI/SMTP variables.
 3. Run `npm --prefix backend-node run prisma:push` and `npm --prefix backend-node run seed` once, then start with `npm --prefix backend-node start`.
-4. Build the client with `npm --prefix frontend run build` and deploy `frontend/dist/` to a static host. Configure that host to proxy `/api` to the API service, or use an equivalent reverse proxy. On Vercel, set `VITE_API_URL=https://tricard-api.onrender.com` for the production build.
+4. Build the client with `npm --prefix frontend run build` and deploy `frontend/dist/` to a static host. Configure that host to proxy `/api` to the API service, or use an equivalent reverse proxy.
 5. Enable HTTPS so production secure session cookies are sent correctly.
 
 ## Live URL
@@ -80,10 +80,6 @@ When the system records a new AI-scanned or RSS news signal for a company, every
 ## Technical Signals
 
 Watched companies are analyzed from Yahoo Finance OHLCV price data every 30 minutes. The engine records only new technical events: 20/50-day moving-average crossovers, MACD crossovers, RSI(14) recovery or reversal thresholds, and price breaks confirmed by 1.5x average volume. A manual scan is also available at `POST /companies/:id/scan-technical`.
-
-## AI Trade Desk
-
-The **AI Trade Desk** combines a live technical scan, ESG and controversy factors, quant analytics, and Copilot into one institutional-style research pass. Select a company and generate an AI thesis with structured catalysts, risks, invalidation criteria, and tactical context. It never uses static frontend data or a mock AI answer: unavailable live API, market data, or OpenAI services produce an explicit error instead.
 
 ## Documentation
 

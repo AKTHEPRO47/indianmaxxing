@@ -293,24 +293,6 @@ export interface CompanyQuantAnalytics {
   regime: string
 }
 
-export interface TechnicalIndicators {
-  last_price: number | null
-  sma20: number | null
-  sma50: number | null
-  rsi14: number | null
-  macd: number | null
-  macd_signal: number | null
-  price_change_percent: number | null
-  average_volume20: number | null
-  latest_volume: number | null
-}
-
-export interface TechnicalScanResult {
-  company_id: number
-  indicators: TechnicalIndicators | null
-  created_signals: Signal[]
-}
-
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export interface DashboardData {

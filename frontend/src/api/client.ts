@@ -3,7 +3,7 @@ import { COMPANY_CATALOG } from '../data/companyCatalog'
 import type {
   Company, ScoreSnapshot, Evidence, Signal, Report,
   DashboardData, MatrixData, CopilotResponse, StockData, StockRange,
-  AuthResponse, UserProfile, UserPreferences, AccountExportBundle, NotificationItem, UpdatePreferencesPayload, CompanyQuantAnalytics, DividendSummary, NewsSignal, TechnicalScanResult,
+  AuthResponse, UserProfile, UserPreferences, AccountExportBundle, NotificationItem, UpdatePreferencesPayload, CompanyQuantAnalytics, DividendSummary, NewsSignal,
 } from '../types'
 
 const BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
@@ -338,11 +338,6 @@ export const getCompanyQuantAnalytics = (companyId: number, lookbackPoints = 12)
     () => fallbackQuantAnalytics(companyId),
   )
 
-export const getLiveCompanyQuantAnalytics = (companyId: number, lookbackPoints = 12) =>
-  http.get<CompanyQuantAnalytics>(`/companies/${companyId}/quant-analytics`, {
-    params: { lookback_points: lookbackPoints },
-  }).then(r => r.data)
-
 export const getAllDividends = (includeZero = true, limit = 300) =>
   withFallback(
     http.get<DividendSummary[]>('/dashboard/dividends', {
@@ -359,15 +354,6 @@ export const scanSignals = (companyId: number) =>
     () => ({ message: 'Static fallback signals loaded.', company_id: companyId }),
   )
 
-export const scanTechnicalAnalysis = (companyId: number) =>
-  withFallback(
-    http.post<TechnicalScanResult>(`/companies/${companyId}/scan-technical`).then(r => r.data),
-    () => ({ company_id: companyId, indicators: null, created_signals: [] }),
-  )
-
-export const scanLiveTechnicalAnalysis = (companyId: number) =>
-  http.post<TechnicalScanResult>(`/companies/${companyId}/scan-technical`).then(r => r.data)
-
 // ─── Copilot ─────────────────────────────────────────────────────────────────
 
 export const askCopilot = (companyId: number, question: string) =>
@@ -379,9 +365,6 @@ export const askCopilot = (companyId: number, question: string) =>
       confidence: 0.5,
     }),
   )
-
-export const askLiveCopilot = (companyId: number, question: string) =>
-  http.post<CopilotResponse>(`/companies/${companyId}/copilot`, { query: question }).then(r => r.data)
 
 // ─── Dashboard & Matrix ───────────────────────────────────────────────────────
 
@@ -396,9 +379,6 @@ export const getMatrix = () =>
     http.get<MatrixData>('/matrix').then(r => r.data),
     () => fallbackMatrix(),
   )
-
-export const getLiveMatrix = () =>
-  http.get<MatrixData>('/matrix').then(r => r.data)
 
 export const getNews = (limit = 50, category?: string, companyId?: number) =>
   http.get<NewsSignal[]>('/news', { params: { limit, ...(category ? { category } : {}), ...(companyId ? { company_id: companyId } : {}) } }).then(r => r.data)
