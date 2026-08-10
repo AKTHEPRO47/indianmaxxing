@@ -13,6 +13,7 @@ const scoringService = require('../services/scoring');
 const logoLookup = require('../services/logoLookup');
 const marketData = require('../services/marketData');
 const signalClassifier = require('../agents/signalClassifier');
+const { notifyWatchersOfSignal } = require('../services/watchlistSignalNotifications');
 const { stringifyCSV } = require('../utils/csvHelper');
 
 const router = express.Router();
@@ -339,6 +340,9 @@ router.post('/:id/scan-signals', async (req, res, next) => {
         },
       });
       created.push(signal);
+      await notifyWatchersOfSignal({ company, signal }).catch(error => {
+        console.warn(`[Notifications] Signal ${signal.id}: ${error.message}`);
+      });
     }
 
     res.json({ message: `${created.length} signal(s) added.`, signals: created });

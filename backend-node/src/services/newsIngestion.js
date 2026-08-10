@@ -4,6 +4,7 @@ const { XMLParser } = require('fast-xml-parser');
 const prisma = require('../database');
 const signalClassifier = require('../agents/signalClassifier');
 const scoringService = require('./scoring');
+const { notifyWatchersOfSignal } = require('./watchlistSignalNotifications');
 
 const parser = new XMLParser({ ignoreAttributes: false, trimValues: true });
 let refreshInFlight = false;
@@ -52,7 +53,7 @@ async function ingestCompanyNews(company) {
     if (existing) continue;
 
     const classified = signalClassifier.classify(item.title, item.summary, 'Yahoo Finance RSS', item.publishedAt);
-    await prisma.signal.create({
+    const signal = await prisma.signal.create({
       data: {
         companyId: company.id,
         title: classified.title,
@@ -64,6 +65,9 @@ async function ingestCompanyNews(company) {
         explanation: classified.explanation,
         confidenceScore: classified.confidenceScore,
       },
+    });
+    await notifyWatchersOfSignal({ company, signal }).catch(error => {
+      console.warn(`[Notifications] Signal ${signal.id}: ${error.message}`);
     });
     created += 1;
   }
@@ -78,7 +82,7 @@ async function refreshNews(limit = 15) {
   try {
     const companies = await prisma.company.findMany({
       where: { ticker: { not: null } },
-      select: { id: true, ticker: true },
+      select: { id: true, name: true, ticker: true },
       take: Math.min(Math.max(Number(limit) || 15, 1), 25),
       orderBy: { id: 'asc' },
     });

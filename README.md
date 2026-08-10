@@ -73,6 +73,10 @@ The verified local URLs are `http://127.0.0.1:5173` and `http://localhost:8000/h
 
 The **Stock Screener** ranks the top three matching companies for a selected industry. Users can filter by market-cap range, dividend-yield profile, minimum ESG score, minimum momentum, and maximum controversy risk. Results are ranked from the current ESG, momentum, AI-adoption, and controversy data available through the Matrix API.
 
+## Watchlist Signal Notifications
+
+When the system records a new AI-scanned or RSS news signal for a company, every user tracking that company receives an in-app notification with a link to its analysis page. Connected clients receive the update in real time; configured email and Telegram delivery continues to respect each user's notification preferences.
+
 ## Documentation
 
 - [Architecture](docs/architecture.md)
