@@ -2,6 +2,7 @@
 
 const express = require('express');
 const prisma = require('../database');
+const marketData = require('../services/marketData');
 
 const router = express.Router();
 
@@ -146,6 +147,7 @@ router.get('/dividends', async (req, res, next) => {
   try {
     const includeZero = req.query.include_zero !== 'false';
     const limit = parseInt(req.query.limit, 10) || 300;
+    const refresh = req.query.refresh === 'true';
 
     const companies = await prisma.company.findMany({
       select: {
@@ -162,23 +164,49 @@ router.get('/dividends', async (req, res, next) => {
       take: limit,
     });
 
-    const rows = companies.map(c => ({
-      companyId: c.id,
-      companyName: c.name,
-      ticker: c.ticker ?? '',
-      exchange: c.exchange ?? null,
-      country: c.country ?? null,
-      annualDividend: c.annualDividend ?? null,
-      dividendYield: c.dividendYield ?? null,
-      lastDividendDate: c.lastDividendDate ?? null,
-      payoutCount: c.annualDividend
-        ? c.payoutFrequency === 'Quarterly' ? 4
-          : c.payoutFrequency === 'Semi-Annual' ? 2
-          : c.payoutFrequency === 'Monthly' ? 12
-          : 1
-        : 0,
-      status: c.annualDividend ? 'active' : 'no_data',
-    }));
+    const hydrated = await mapWithConcurrency(companies, 6, async company => {
+      if (!company.ticker || (!refresh && company.payoutFrequency !== null)) return { company, live: null };
+
+      const live = await marketData.fetchDividendSummary(company.ticker);
+      if (!live.error) {
+        await prisma.company.update({
+          where: { id: company.id },
+          data: {
+            annualDividend: live.annualDividend,
+            dividendYield: live.dividendYield,
+            lastDividendDate: live.lastDividendDate,
+            payoutFrequency: live.payoutFrequency,
+          },
+        });
+      }
+      return { company, live };
+    });
+
+    const rows = hydrated.map(({ company, live }) => {
+      const annualDividend = live && !live.error ? live.annualDividend : company.annualDividend;
+      const dividendYield = live && !live.error ? live.dividendYield : company.dividendYield;
+      const lastDividendDate = live && !live.error ? live.lastDividendDate : company.lastDividendDate;
+      const payoutFrequency = live && !live.error ? live.payoutFrequency : company.payoutFrequency;
+      const payoutCount = live && !live.error ? live.payoutCount : annualDividend
+        ? payoutFrequency === 'Quarterly' ? 4
+          : payoutFrequency === 'Semi-Annual' ? 2
+            : payoutFrequency === 'Monthly' ? 12
+              : 1
+        : 0;
+
+      return {
+        companyId: company.id,
+        companyName: company.name,
+        ticker: company.ticker ?? '',
+        exchange: company.exchange ?? null,
+        country: company.country ?? null,
+        annualDividend,
+        dividendYield,
+        lastDividendDate,
+        payoutCount,
+        status: live?.error ? 'error' : annualDividend ? 'live' : payoutFrequency === 'None' ? 'no_dividend' : 'no_data',
+      };
+    });
 
     const result = includeZero ? rows : rows.filter(r => r.annualDividend !== null);
     res.json(result);
@@ -186,6 +214,19 @@ router.get('/dividends', async (req, res, next) => {
     next(err);
   }
 });
+
+async function mapWithConcurrency(items, concurrency, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const worker = async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await mapper(items[index]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
+  return results;
+}
 
 async function generateMarketSummary() {
   const total = await prisma.scoreSnapshot.count();

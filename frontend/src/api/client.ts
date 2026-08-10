@@ -338,10 +338,10 @@ export const getCompanyQuantAnalytics = (companyId: number, lookbackPoints = 12)
     () => fallbackQuantAnalytics(companyId),
   )
 
-export const getAllDividends = (includeZero = true, limit = 300) =>
+export const getAllDividends = (includeZero = true, limit = 300, refresh = false) =>
   withFallback(
     http.get<DividendSummary[]>('/dashboard/dividends', {
-      params: { include_zero: includeZero, limit },
+      params: { include_zero: includeZero, limit, refresh },
     }).then(r => r.data),
     () => [],
   )

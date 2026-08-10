@@ -109,4 +109,46 @@ async function fetchFinancialProfile(symbol) {
   }
 }
 
-module.exports = { fetchStockData, fetchFinancialProfile };
+async function fetchDividendSummary(symbol) {
+  const ticker = normalizeYahooTicker(symbol);
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}`;
+
+  try {
+    const response = await axios.get(url, {
+      params: { range: '1y', interval: '1d', events: 'div' },
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+      },
+    });
+
+    const result = response.data?.chart?.result?.[0];
+    if (!result) return { error: 'No data returned' };
+
+    const payouts = Object.values(result.events?.dividends || {})
+      .map(dividend => ({ amount: cleanNumber(dividend.amount), date: dividend.date ? new Date(dividend.date * 1000).toISOString().slice(0, 10) : null }))
+      .filter(dividend => dividend.amount != null && dividend.date)
+      .sort((left, right) => left.date.localeCompare(right.date));
+    const annualDividend = payouts.reduce((sum, dividend) => sum + dividend.amount, 0);
+    const currentPrice = cleanNumber(result.meta?.regularMarketPrice);
+    const payoutFrequency = payouts.length >= 10 ? 'Monthly'
+      : payouts.length >= 3 ? 'Quarterly'
+        : payouts.length === 2 ? 'Semi-Annual'
+          : payouts.length === 1 ? 'Annual'
+            : 'None';
+
+    return {
+      annualDividend: annualDividend > 0 ? +annualDividend.toFixed(4) : null,
+      dividendYield: annualDividend > 0 && currentPrice ? +((annualDividend / currentPrice) * 100).toFixed(4) : null,
+      lastDividendDate: payouts.at(-1)?.date ?? null,
+      payoutFrequency,
+      payoutCount: payouts.length,
+      error: null,
+    };
+  } catch (err) {
+    return { error: err.message || 'Yahoo Finance request failed' };
+  }
+}
+
+module.exports = { fetchStockData, fetchFinancialProfile, fetchDividendSummary };

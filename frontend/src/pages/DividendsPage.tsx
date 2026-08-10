@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Coins } from 'lucide-react'
+import { Coins, RefreshCw } from 'lucide-react'
 import { getAllDividends } from '../api/client'
 import type { DividendSummary } from '../types'
 
@@ -14,6 +14,7 @@ export default function DividendsPage() {
   const [loading, setLoading] = useState(true)
   const [showZero, setShowZero] = useState(true)
   const [search, setSearch] = useState('')
+  const [refreshing, setRefreshing] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -22,6 +23,13 @@ export default function DividendsPage() {
       .then(setRows)
       .finally(() => setLoading(false))
   }, [showZero])
+
+  const refresh = () => {
+    setRefreshing(true)
+    getAllDividends(showZero, 500, true)
+      .then(setRows)
+      .finally(() => setRefreshing(false))
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -53,6 +61,7 @@ export default function DividendsPage() {
             </p>
           </div>
           <div className="flex items-center gap-2 text-xs">
+            <button onClick={refresh} disabled={refreshing} className="btn-secondary px-3 py-2 text-xs disabled:opacity-60"><RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />{refreshing ? 'Refreshing' : 'Refresh live data'}</button>
             <label className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-slate-600">
               <input
                 type="checkbox"
