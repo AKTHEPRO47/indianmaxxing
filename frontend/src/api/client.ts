@@ -3,7 +3,7 @@ import { COMPANY_CATALOG } from '../data/companyCatalog'
 import type {
   Company, ScoreSnapshot, Evidence, Signal, Report,
   DashboardData, MatrixData, CopilotResponse, StockData, StockRange,
-  AuthResponse, UserProfile, UserPreferences, AccountExportBundle, NotificationItem, UpdatePreferencesPayload, CompanyQuantAnalytics, DividendSummary, NewsSignal,
+  AuthResponse, UserProfile, UserPreferences, AccountExportBundle, NotificationItem, UpdatePreferencesPayload, CompanyQuantAnalytics, DividendSummary, NewsSignal, TechnicalScanResult,
 } from '../types'
 
 const BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '')
@@ -352,6 +352,12 @@ export const scanSignals = (companyId: number) =>
   withFallback(
     http.post(`/companies/${companyId}/scan-signals`).then(r => r.data),
     () => ({ message: 'Static fallback signals loaded.', company_id: companyId }),
+  )
+
+export const scanTechnicalAnalysis = (companyId: number) =>
+  withFallback(
+    http.post<TechnicalScanResult>(`/companies/${companyId}/scan-technical`).then(r => r.data),
+    () => ({ company_id: companyId, indicators: null, created_signals: [] }),
   )
 
 // ─── Copilot ─────────────────────────────────────────────────────────────────

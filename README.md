@@ -81,6 +81,10 @@ When the system records a new AI-scanned or RSS news signal for a company, every
 
 Watched companies are analyzed from Yahoo Finance OHLCV price data every 30 minutes. The engine records only new technical events: 20/50-day moving-average crossovers, MACD crossovers, RSI(14) recovery or reversal thresholds, and price breaks confirmed by 1.5x average volume. A manual scan is also available at `POST /companies/:id/scan-technical`.
 
+## AI Trade Desk
+
+The **AI Trade Desk** combines a live technical scan, ESG and controversy factors, quant analytics, and Copilot into one institutional-style research pass. Select a company and generate an AI thesis with structured catalysts, risks, invalidation criteria, and tactical context.
+
 ## Documentation
 
 - [Architecture](docs/architecture.md)
