@@ -115,8 +115,8 @@ router.post('/register', authLimiter, async (req, res, next) => {
       },
     });
 
-    // Send verification email (non-blocking)
-    emailService.sendVerificationEmail(user.email, verifyToken).catch(() => {});
+    // Email delivery cannot delay account creation, but failures are logged by the email service.
+    emailService.sendVerificationEmail(user.email, verifyToken);
     activityLogger.log(user.id, 'register', 'user', user.id, {}, req);
 
     const userOut = await issueSession(user, res, req);

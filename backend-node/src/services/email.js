@@ -5,8 +5,15 @@ const config = require('../config');
 
 let transporter = null;
 
+function emailConfigurationError() {
+  if (!config.smtp.host) return 'SMTP_HOST is not configured';
+  if (Boolean(config.smtp.username) !== Boolean(config.smtp.password)) return 'SMTP credentials are incomplete';
+  if (!config.smtp.fromEmail || config.smtp.fromEmail === 'noreply@tricard.local') return 'SMTP_FROM_EMAIL is not configured';
+  return null;
+}
+
 function getTransporter() {
-  if (!transporter && config.smtp.host) {
+  if (!transporter && !emailConfigurationError()) {
     const transportOptions = {
       host: config.smtp.host,
       port: config.smtp.port,
@@ -22,19 +29,23 @@ function getTransporter() {
 }
 
 async function sendEmail({ to, subject, html, text }) {
-  const t = getTransporter();
-  if (!t) {
-    if (config.isDev) {
-      console.log(`[EMAIL (dev)] To: ${to} | Subject: ${subject}`);
-    }
-    return { status: 'not_configured' };
+  const configurationError = emailConfigurationError();
+  if (configurationError) {
+    console.error(`[EMAIL] Not configured: ${configurationError}`);
+    return { status: 'not_configured', reason: configurationError };
   }
 
-  const result = await t.sendMail({
-    from: `"${config.smtp.fromName}" <${config.smtp.fromEmail}>`,
-    to, subject, html, text,
-  });
-  return { status: 'sent', messageId: result.messageId };
+  const t = getTransporter();
+  try {
+    const result = await t.sendMail({
+      from: `"${config.smtp.fromName}" <${config.smtp.fromEmail}>`,
+      to, subject, html, text,
+    });
+    return { status: 'sent', messageId: result.messageId };
+  } catch (error) {
+    console.error(`[EMAIL] Delivery failed for "${subject}": ${error.message}`);
+    return { status: 'failed', reason: 'delivery_failed' };
+  }
 }
 
 async function sendVerificationEmail(email, token) {
@@ -93,4 +104,4 @@ function shouldSendAlertEmail(user) {
   }
 }
 
-module.exports = { sendEmail, sendVerificationEmail, sendPasswordResetEmail, sendAlertNotificationEmail, shouldSendAlertEmail };
+module.exports = { sendEmail, sendVerificationEmail, sendPasswordResetEmail, sendAlertNotificationEmail, shouldSendAlertEmail, emailConfigurationError };
