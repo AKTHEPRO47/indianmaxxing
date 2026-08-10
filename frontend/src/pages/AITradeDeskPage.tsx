@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Activity, Bot, BrainCircuit, CandlestickChart, ChevronRight, CircleAlert, Cpu, Gauge, Loader2, Radar, ShieldAlert, Sparkles, Target, TrendingDown, TrendingUp, Waves } from 'lucide-react'
-import { askCopilot, getCompanyQuantAnalytics, getMatrix, scanTechnicalAnalysis } from '../api/client'
+import { Activity, Bot, BrainCircuit, CandlestickChart, ChevronRight, CircleAlert, Cpu, Gauge, Radar, ShieldAlert, Sparkles, Target, TrendingDown, TrendingUp, Waves } from 'lucide-react'
+import { askLiveCopilot, getLiveCompanyQuantAnalytics, getLiveMatrix, scanLiveTechnicalAnalysis } from '../api/client'
 import CompanyLogo from '../components/CompanyLogo'
 import { ClassificationBadge, InvestorSignalBadge } from '../components/InvestorSignalBadge'
 import type { Company, CompanyQuantAnalytics, TechnicalScanResult } from '../types'
@@ -35,9 +35,10 @@ export default function AITradeDeskPage() {
   const [loadingCompanies, setLoadingCompanies] = useState(true)
   const [running, setRunning] = useState(false)
   const [desk, setDesk] = useState<DeskState | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    getMatrix()
+    getLiveMatrix()
       .then(data => {
         const available = data.entries.map(entry => ({
           ...entry.company,
@@ -60,6 +61,7 @@ export default function AITradeDeskPage() {
         setCompanies(available)
         setCompanyId(available[0]?.id ?? null)
       })
+      .catch(() => setError('Live research data is unavailable. Connect the production API and try again.'))
       .finally(() => setLoadingCompanies(false))
   }, [])
 
@@ -68,17 +70,21 @@ export default function AITradeDeskPage() {
   const runDesk = async () => {
     if (!selected) return
     setRunning(true)
+    setError(null)
     try {
       const [technical, quant] = await Promise.all([
-        scanTechnicalAnalysis(selected.id),
-        getCompanyQuantAnalytics(selected.id),
+        scanLiveTechnicalAnalysis(selected.id),
+        getLiveCompanyQuantAnalytics(selected.id),
       ])
-      const brief = await askCopilot(selected.id, [
+      const brief = await askLiveCopilot(selected.id, [
         'Write a concise institutional trade brief using the stored ESG signals and current score context.',
         'Use exactly these labeled sections: Thesis, Catalysts, Risks, Invalidation, and Tactical Setup.',
         'Do not invent price targets or data. Distinguish facts from interpretation.',
       ].join(' '))
       setDesk({ company: selected, technical, quant, brief: brief.answer })
+    } catch {
+      setDesk(null)
+      setError('Live AI research is unavailable. No static or mock thesis has been shown. Check the API, market-data access, and OpenAI configuration.')
     } finally {
       setRunning(false)
     }
@@ -102,6 +108,8 @@ export default function AITradeDeskPage() {
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500"><span className="live-dot h-2 w-2 rounded-full bg-emerald-500" />Live market data when available</div>
       </header>
+
+      {error && <div role="alert" className="border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-900 dark:bg-rose-950/40 dark:text-rose-200">{error}</div>}
 
       <section className="grid gap-3 border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 md:grid-cols-[1fr_auto] md:items-end">
         <label className="block text-xs font-medium text-slate-600 dark:text-slate-300"><span className="mb-1.5 block">Research target</span><select value={companyId ?? ''} onChange={event => { setCompanyId(Number(event.target.value)); setDesk(null) }} className="input-field w-full">{companies.map(company => <option key={company.id} value={company.id}>{company.ticker ?? 'Private'} · {company.name}</option>)}</select></label>
