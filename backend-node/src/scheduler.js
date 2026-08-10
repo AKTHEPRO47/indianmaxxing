@@ -37,6 +37,13 @@ function startScheduler() {
     } catch {}
   });
 
+  // Every 30 minutes: evaluate real OHLCV technical triggers for watched companies.
+  cron.schedule('*/30 * * * *', async () => {
+    try {
+      await require('./services/technicalAnalysis').scanWatchedCompanies();
+    } catch {}
+  });
+
   // Daily at 08:00 UTC: auto-score companies that haven't been scored in 24h
   cron.schedule('0 8 * * *', async () => {
     try {

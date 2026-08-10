@@ -18,6 +18,7 @@ export type SignalCategory =
   | 'social'
   | 'governance'
   | 'ai_adoption'
+  | 'technical'
   | 'controversy'
   | 'neutral'
 

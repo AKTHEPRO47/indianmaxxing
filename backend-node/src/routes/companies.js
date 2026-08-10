@@ -14,6 +14,7 @@ const logoLookup = require('../services/logoLookup');
 const marketData = require('../services/marketData');
 const signalClassifier = require('../agents/signalClassifier');
 const { notifyWatchersOfSignal } = require('../services/watchlistSignalNotifications');
+const { scanCompanyTechnical } = require('../services/technicalAnalysis');
 const { stringifyCSV } = require('../utils/csvHelper');
 
 const router = express.Router();
@@ -361,6 +362,23 @@ router.post('/:id/calculate-scores', async (req, res, next) => {
 
     const snapshot = await scoringService.calculateScores(companyId);
     res.json(snapshot);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── POST /companies/:id/scan-technical ───────────────────
+
+router.post('/:id/scan-technical', async (req, res, next) => {
+  try {
+    const companyId = parseInt(req.params.id);
+    const company = await prisma.company.findUnique({
+      where: { id: companyId },
+      select: { id: true, name: true, ticker: true },
+    });
+    if (!company) return res.status(404).json({ detail: 'Company not found.' });
+
+    res.json(await scanCompanyTechnical(company));
   } catch (err) {
     next(err);
   }

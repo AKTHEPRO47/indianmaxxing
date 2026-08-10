@@ -77,6 +77,10 @@ The **Stock Screener** ranks the top three matching companies for a selected ind
 
 When the system records a new AI-scanned or RSS news signal for a company, every user tracking that company receives an in-app notification with a link to its analysis page. Connected clients receive the update in real time; configured email and Telegram delivery continues to respect each user's notification preferences.
 
+## Technical Signals
+
+Watched companies are analyzed from Yahoo Finance OHLCV price data every 30 minutes. The engine records only new technical events: 20/50-day moving-average crossovers, MACD crossovers, RSI(14) recovery or reversal thresholds, and price breaks confirmed by 1.5x average volume. A manual scan is also available at `POST /companies/:id/scan-technical`.
+
 ## Documentation
 
 - [Architecture](docs/architecture.md)
