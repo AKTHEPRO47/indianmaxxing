@@ -18,10 +18,11 @@ function formatNumber(value: number | null | undefined, digits = 1) {
   return value == null || Number.isNaN(value) ? '---' : value.toFixed(digits)
 }
 
-function factorScore(company: Company, technical: TechnicalScanResult | null, quant: CompanyQuantAnalytics | null) {
+function factorScore(company: Company | null | undefined, technical: TechnicalScanResult | null, quant: CompanyQuantAnalytics | null) {
+  if (!company || !quant) return 0
   const score = company.latest_score
   const indicators = technical?.indicators
-  if (!score || !quant) return 0
+  if (!score) return 0
   const trend = indicators?.sma20 != null && indicators?.sma50 != null ? (indicators.sma20 > indicators.sma50 ? 15 : -15) : 0
   const rsi = indicators?.rsi14 == null ? 0 : indicators.rsi14 >= 45 && indicators.rsi14 <= 70 ? 8 : indicators.rsi14 > 75 ? -8 : 2
   return Math.round(Math.max(0, Math.min(100, 50 + score.momentum_score * 1.2 + (70 - score.controversy_risk) * 0.25 + (quant.signal_quality_score - 50) * 0.35 + trend + rsi)))
@@ -83,7 +84,7 @@ export default function AITradeDeskPage() {
     }
   }
 
-  const conviction = factorScore(desk?.company ?? selected ?? companies[0] as Company, desk?.technical ?? null, desk?.quant ?? null)
+  const conviction = factorScore(desk?.company ?? selected ?? companies[0], desk?.technical ?? null, desk?.quant ?? null)
   const indicators = desk?.technical.indicators
   const score = desk?.company.latest_score ?? selected?.latest_score
   const trendUp = indicators?.sma20 != null && indicators?.sma50 != null && indicators.sma20 > indicators.sma50
